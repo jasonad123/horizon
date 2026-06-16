@@ -2,8 +2,8 @@ export function getMinutesUntil(departureTime: number): number {
 	return Math.round((departureTime * 1000 - Date.now()) / 60000);
 }
 
-export function formatCountdown(departureTime: number): string {
-	const minutes = Math.round((departureTime * 1000 - Date.now()) / 60000);
+export function formatCountdown(departureTime: number, now = Date.now()): string {
+	const minutes = Math.round((departureTime * 1000 - now) / 60000);
 	return minutes <= 0 ? 'Due' : `${minutes} min`;
 }
 

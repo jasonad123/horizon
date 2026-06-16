@@ -1,34 +1,32 @@
 <script lang="ts">
 	import RouteIcon from './RouteIcon.svelte';
 	import { formatCountdown } from '$lib/utils/timeUtils';
+	import { shouldShowDeparture } from '$lib/utils/departureFilters';
 	import type { Route, Itinerary, ScheduleItem } from '$lib/services/nearby';
 
-	let {
-		route,
-		itinerary,
-		item
-	}: {
-		route: Route;
-		itinerary: Itinerary;
-		item: ScheduleItem;
-	} = $props();
+	let { route, itinerary }: { route: Route; itinerary: Itinerary } = $props();
 
-	let countdown = $state('');
+	let now = $state(Date.now());
 
 	$effect(() => {
-		countdown = formatCountdown(item.departure_time);
-		const id = setInterval(() => {
-			countdown = formatCountdown(item.departure_time);
-		}, 1000);
+		const id = setInterval(() => { now = Date.now(); }, 1000);
 		return () => clearInterval(id);
 	});
+
+	// Re-evaluates every second. When the current departure passes,
+	// automatically rolls forward to the next one without waiting for a poll.
+	let currentItem = $derived.by((): ScheduleItem | undefined =>
+		(itinerary.schedule_items ?? [])
+			.filter((item) => shouldShowDeparture(item.departure_time, now))
+			.sort((a, b) => a.departure_time - b.departure_time)[0]
+	);
+
+	let countdown = $derived(currentItem ? formatCountdown(currentItem.departure_time, now) : '');
 
 	let stopLabel = $derived.by(() => {
 		const stop = itinerary.closest_stop;
 		if (!stop) return '';
 		if (stop.stop_code) return stop.stop_code;
-		// No stop_code — use the trailing segment of stop_name (after last " - ")
-		// capped at 12 chars so it fits the column without ellipsis
 		const name = stop.stop_name || '';
 		const after = name.lastIndexOf(' - ');
 		const label = after > -1 ? name.slice(after + 3) : name;
@@ -40,29 +38,31 @@
 	);
 </script>
 
-<tr class="departure-row" class:is-cancelled={item.is_cancelled}>
-	<td class="col-route">
-		<RouteIcon {route} />
-	</td>
-	<td class="col-destination" class:cancelled-text={item.is_cancelled}>
-		{destination}
-	</td>
-	<td class="col-stop">
-		{stopLabel}
-	</td>
-	<td class="col-time">
-		<div class="time-inner">
-			<span class="countdown" class:cancelled-text={item.is_cancelled}>
-				{item.is_cancelled ? 'Cancelled' : countdown}
-			</span>
-			{#if !item.is_cancelled}
-				<span class="status-badge" class:rt={item.is_real_time} class:sch={!item.is_real_time}>
-					{item.is_real_time ? 'RT' : 'SCH'}
+{#if currentItem}
+	<tr class="departure-row" class:is-cancelled={currentItem.is_cancelled}>
+		<td class="col-route">
+			<RouteIcon {route} />
+		</td>
+		<td class="col-destination" class:cancelled-text={currentItem.is_cancelled}>
+			{destination}
+		</td>
+		<td class="col-stop">
+			{stopLabel}
+		</td>
+		<td class="col-time">
+			<div class="time-inner">
+				<span class="countdown" class:cancelled-text={currentItem.is_cancelled}>
+					{currentItem.is_cancelled ? 'Cancelled' : countdown}
 				</span>
-			{/if}
-		</div>
-	</td>
-</tr>
+				{#if !currentItem.is_cancelled}
+					<span class="status-badge" class:rt={currentItem.is_real_time} class:sch={!currentItem.is_real_time}>
+						{currentItem.is_real_time ? 'RT' : 'SCH'}
+					</span>
+				{/if}
+			</div>
+		</td>
+	</tr>
+{/if}
 
 <style>
 	.departure-row {

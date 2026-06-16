@@ -5,15 +5,14 @@
 	import { fetchStopDepartures } from '$lib/services/stops';
 	import { shouldShowDeparture } from '$lib/utils/departureFilters';
 	import DepartureRow from './DepartureRow.svelte';
-	import type { Route, Itinerary, ScheduleItem } from '$lib/services/nearby';
+	import type { Route, Itinerary } from '$lib/services/nearby';
 
-	interface DepartureEntry {
+	interface DirectionEntry {
 		route: Route;
 		itinerary: Itinerary;
-		item: ScheduleItem;
 	}
 
-	let departures = $state<DepartureEntry[]>([]);
+	let departures = $state<DirectionEntry[]>([]);
 	let loading = $state(true);
 	let errorMessage = $state<string | null>(null);
 	let retryCountdown = $state<number | null>(null);
@@ -25,20 +24,22 @@
 
 	const POLLING_INTERVAL = parseInt(import.meta.env.VITE_CLIENT_POLLING_INTERVAL || '10000');
 
-	function flattenRoutes(routes: Route[]): DepartureEntry[] {
-		const entries: DepartureEntry[] = [];
+	function nextDepartureTime(itinerary: Itinerary): number {
+		return (itinerary.schedule_items ?? [])
+			.filter((i) => shouldShowDeparture(i.departure_time))
+			.sort((a, b) => a.departure_time - b.departure_time)[0]?.departure_time ?? Infinity;
+	}
+
+	function buildDirections(routes: Route[]): DirectionEntry[] {
+		const entries: DirectionEntry[] = [];
 		for (const route of routes) {
 			for (const itinerary of route.itineraries ?? []) {
-				// One row per direction: pick the soonest upcoming departure only.
-				// This keeps the board stable — the direction is always visible and
-				// rolls forward to the next departure when the current one passes.
-				const next = (itinerary.schedule_items ?? [])
-					.filter((item) => shouldShowDeparture(item.departure_time))
-					.sort((a, b) => a.departure_time - b.departure_time)[0];
-				if (next) entries.push({ route, itinerary, item: next });
+				if ((itinerary.schedule_items ?? []).some((i) => shouldShowDeparture(i.departure_time))) {
+					entries.push({ route, itinerary });
+				}
 			}
 		}
-		return entries.sort((a, b) => a.item.departure_time - b.item.departure_time);
+		return entries.sort((a, b) => nextDepartureTime(a.itinerary) - nextDepartureTime(b.itinerary));
 	}
 
 	async function fetchDepartures() {
@@ -59,7 +60,7 @@
 				return;
 			}
 
-			departures = flattenRoutes(routes).slice(0, cfg.maxDepartures);
+			departures = buildDirections(routes).slice(0, cfg.maxDepartures);
 			loading = false;
 			errorMessage = null;
 			errorType = null;
@@ -158,8 +159,8 @@
 				</tr>
 			</thead>
 			<tbody>
-				{#each departures as entry (entry.route.global_route_id + '-' + entry.item.departure_time + '-' + (entry.item.trip_search_key || ''))}
-					<DepartureRow route={entry.route} itinerary={entry.itinerary} item={entry.item} />
+				{#each departures as entry (entry.route.global_route_id + '-' + (entry.itinerary.direction_id ?? '') + '-' + (entry.itinerary.merged_headsign || entry.itinerary.headsign || ''))}
+					<DepartureRow route={entry.route} itinerary={entry.itinerary} />
 				{/each}
 			</tbody>
 		</table>
@@ -232,6 +233,5 @@
 	.overlay-sub {
 		font-size: 0.85em;
 		color: var(--text-muted);
-		font-family: var(--font-mono);
 	}
 </style>
