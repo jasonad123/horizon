@@ -6,16 +6,20 @@
 	let bg = $derived(`#${route.route_color || '888888'}`);
 	let fg = $derived(`#${route.route_text_color || 'ffffff'}`);
 
+	// elements[] contains icon identifiers (e.g. "mta-subway-7"), not display text.
+	// Use route_short_name as the text label; boxed_text overrides for branded routes.
 	let label = $derived(
 		route.route_display_short_name?.boxed_text ||
-		route.route_display_short_name?.elements?.join('') ||
 		route.route_short_name ||
 		route.route_long_name?.split(' ')[0] ||
 		'?'
 	);
 
-	// Shrink font for longer labels
-	let fontSize = $derived(label.length > 3 ? '0.65em' : label.length > 2 ? '0.75em' : '0.85em');
+	let fontSize = $derived(
+		label.length > 4 ? '0.6em' :
+		label.length > 3 ? '0.7em' :
+		label.length > 2 ? '0.8em' : '0.95em'
+	);
 </script>
 
 <span
@@ -31,13 +35,12 @@
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		min-width: 32px;
-		height: 32px;
-		padding: 0 6px;
-		border-radius: 4px;
-		font-weight: 700;
-		font-family: var(--font-mono);
-		letter-spacing: -0.02em;
+		min-width: 42px;
+		height: 42px;
+		padding: 0 8px;
+		border-radius: 5px;
+		font-weight: 800;
+		letter-spacing: -0.01em;
 		white-space: nowrap;
 		flex-shrink: 0;
 	}

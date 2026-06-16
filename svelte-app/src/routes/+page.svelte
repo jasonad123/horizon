@@ -42,18 +42,17 @@
 	}
 
 	.station-title {
-		font-size: 1.25em;
+		font-size: 1.35em;
 		font-weight: 600;
 		color: var(--text-primary);
-		letter-spacing: 0.02em;
+		letter-spacing: 0.04em;
 		text-transform: uppercase;
 	}
 
 	.clock {
-		font-family: var(--font-mono);
-		font-size: 1.5em;
-		font-weight: 700;
+		font-size: 1.65em;
+		font-weight: 300;
 		color: var(--text-primary);
-		letter-spacing: 0.05em;
+		letter-spacing: 0.06em;
 	}
 </style>

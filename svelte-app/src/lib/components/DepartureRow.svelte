@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onDestroy } from 'svelte';
 	import RouteIcon from './RouteIcon.svelte';
 	import { formatCountdown } from '$lib/utils/timeUtils';
 	import type { Route, Itinerary, ScheduleItem } from '$lib/services/nearby';
@@ -15,32 +14,31 @@
 	} = $props();
 
 	let countdown = $state('');
-	let timerId: ReturnType<typeof setInterval>;
 
 	$effect(() => {
 		countdown = formatCountdown(item.departure_time);
-		timerId = setInterval(() => {
+		const id = setInterval(() => {
 			countdown = formatCountdown(item.departure_time);
 		}, 1000);
-		return () => clearInterval(timerId);
+		return () => clearInterval(id);
 	});
 
 	let stopLabel = $derived.by(() => {
 		const stop = itinerary.closest_stop;
 		if (!stop) return '';
-		// Prefer stop_code (e.g. "4", "A", "Track 8") as a concise bay/platform label
 		if (stop.stop_code) return stop.stop_code;
-		// Fall back to the last segment of stop_name after " - " or " / "
 		const name = stop.stop_name;
 		const dashIdx = name.lastIndexOf(' - ');
 		if (dashIdx > -1) return name.slice(dashIdx + 3);
 		return name;
 	});
 
-	let destination = $derived(itinerary.merged_headsign || itinerary.direction_headsign || itinerary.headsign || '');
+	let destination = $derived(
+		itinerary.merged_headsign || itinerary.direction_headsign || itinerary.headsign || ''
+	);
 </script>
 
-<tr class="departure-row" class:is-realtime={item.is_real_time} class:is-cancelled={item.is_cancelled}>
+<tr class="departure-row" class:is-cancelled={item.is_cancelled}>
 	<td class="col-route">
 		<RouteIcon {route} />
 	</td>
@@ -51,14 +49,16 @@
 		{stopLabel}
 	</td>
 	<td class="col-time">
-		<span class="countdown" class:cancelled-text={item.is_cancelled}>
-			{item.is_cancelled ? 'Cancelled' : countdown}
-		</span>
-		{#if !item.is_cancelled}
-			<span class="status-badge" class:rt={item.is_real_time} class:sch={!item.is_real_time}>
-				{item.is_real_time ? 'RT' : 'SCH'}
+		<div class="time-inner">
+			<span class="countdown" class:cancelled-text={item.is_cancelled}>
+				{item.is_cancelled ? 'Cancelled' : countdown}
 			</span>
-		{/if}
+			{#if !item.is_cancelled}
+				<span class="status-badge" class:rt={item.is_real_time} class:sch={!item.is_real_time}>
+					{item.is_real_time ? 'RT' : 'SCH'}
+				</span>
+			{/if}
+		</div>
 	</td>
 </tr>
 
@@ -66,7 +66,6 @@
 	.departure-row {
 		height: var(--row-height);
 		border-bottom: 1px solid var(--border-color);
-		transition: background 0.15s;
 	}
 
 	.departure-row:nth-child(even) {
@@ -78,7 +77,7 @@
 	}
 
 	td {
-		padding: 0 12px;
+		padding: 0 14px;
 		vertical-align: middle;
 		white-space: nowrap;
 		overflow: hidden;
@@ -86,41 +85,42 @@
 	}
 
 	.col-route {
-		width: 52px;
-		padding: 0 8px;
+		width: 68px;
+		padding: 0 12px;
 		text-align: center;
 	}
 
 	.col-destination {
 		max-width: 0;
 		width: 100%;
-		font-size: 1em;
+		font-size: 1.1em;
 		font-weight: 500;
 		color: var(--text-primary);
 	}
 
 	.col-stop {
-		width: 120px;
-		font-size: 0.85em;
+		width: 140px;
+		font-size: 0.9em;
 		color: var(--text-secondary);
 		text-align: center;
 	}
 
 	.col-time {
-		width: 120px;
-		text-align: right;
+		width: 150px;
+	}
+
+	.time-inner {
 		display: flex;
 		align-items: center;
 		justify-content: flex-end;
-		gap: 6px;
+		gap: 8px;
 	}
 
 	.countdown {
-		font-family: var(--font-mono);
-		font-size: 1em;
+		font-size: 1.15em;
 		font-weight: 700;
 		color: var(--text-primary);
-		min-width: 54px;
+		min-width: 58px;
 		text-align: right;
 	}
 
@@ -130,12 +130,11 @@
 	}
 
 	.status-badge {
-		font-family: var(--font-mono);
 		font-size: 0.65em;
 		font-weight: 700;
-		padding: 2px 4px;
+		padding: 3px 5px;
 		border-radius: 3px;
-		letter-spacing: 0.04em;
+		letter-spacing: 0.05em;
 	}
 
 	.status-badge.rt {

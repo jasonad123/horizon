@@ -22,7 +22,7 @@ const defaultConfig: HorizonConfig = {
 	maxDistance: 500,
 	selectedStopIds: [],
 	timeFormat: 'HH:mm',
-	maxDepartures: 12,
+	maxDepartures: 8,
 	loaded: false
 };
 

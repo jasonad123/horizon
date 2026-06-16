@@ -183,8 +183,8 @@
 	}
 
 	thead th {
-		padding: 10px 12px;
-		font-size: 0.7em;
+		padding: 12px 14px;
+		font-size: 0.72em;
 		font-weight: 700;
 		letter-spacing: 0.1em;
 		text-transform: uppercase;
@@ -193,18 +193,18 @@
 	}
 
 	thead th.col-route {
-		width: 52px;
-		padding: 10px 8px;
+		width: 68px;
+		padding: 12px 12px;
 		text-align: center;
 	}
 
 	thead th.col-stop {
-		width: 120px;
+		width: 140px;
 		text-align: center;
 	}
 
 	thead th.col-time {
-		width: 120px;
+		width: 150px;
 		text-align: right;
 	}
 
