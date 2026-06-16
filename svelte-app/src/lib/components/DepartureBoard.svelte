@@ -49,12 +49,15 @@
 		try {
 			let routes: Route[];
 
-			if (cfg.selectedStopIds.length > 0) {
+			if (cfg.filterMode === 'stops' && cfg.selectedStopIds.length > 0) {
 				routes = await fetchStopDepartures(cfg.selectedStopIds, Math.min(cfg.maxDepartures, 10));
 			} else if (cfg.location) {
 				routes = await findNearbyRoutes(cfg.location, cfg.maxDistance);
+				if (cfg.filterMode === 'routes' && cfg.selectedRouteIds.length > 0) {
+					const allowed = new Set(cfg.selectedRouteIds);
+					routes = routes.filter((r) => allowed.has(r.global_route_id));
+				}
 			} else {
-				// No location configured — show empty state
 				departures = [];
 				loading = false;
 				return;
