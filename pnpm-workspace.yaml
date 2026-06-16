@@ -1,0 +1,8 @@
+packages:
+  - 'svelte-app'
+
+onlyBuiltDependencies:
+  - esbuild
+
+ignoredBuiltDependencies:
+  - es5-ext
