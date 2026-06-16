@@ -5,9 +5,9 @@ export function getMinutesUntil(departureTime: number): number {
 export function formatCountdown(departureTime: number): string {
 	const diffMs = departureTime * 1000 - Date.now();
 	if (diffMs <= 0) return 'Due';
-	const minutes = Math.floor(diffMs / 60000);
-	if (minutes < 1) return 'Due';
-	return `${minutes} min`;
+	const seconds = Math.floor(diffMs / 1000);
+	if (seconds < 30) return 'Due';
+	return `${Math.ceil(seconds / 60)} min`;
 }
 
 export function formatClock(date: Date, format: 'HH:mm' | 'hh:mm A' | 'HH:mm:ss'): string {

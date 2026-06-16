@@ -23,15 +23,7 @@
 		return () => clearInterval(id);
 	});
 
-	let stopLabel = $derived.by(() => {
-		const stop = itinerary.closest_stop;
-		if (!stop) return '';
-		if (stop.stop_code) return stop.stop_code;
-		const name = stop.stop_name;
-		const dashIdx = name.lastIndexOf(' - ');
-		if (dashIdx > -1) return name.slice(dashIdx + 3);
-		return name;
-	});
+	let stopLabel = $derived(itinerary.closest_stop?.stop_code ?? '');
 
 	let destination = $derived(
 		itinerary.merged_headsign || itinerary.direction_headsign || itinerary.headsign || ''
@@ -81,7 +73,6 @@
 		vertical-align: middle;
 		white-space: nowrap;
 		overflow: hidden;
-		text-overflow: ellipsis;
 	}
 
 	.col-route {
@@ -96,6 +87,7 @@
 		font-size: 1.1em;
 		font-weight: 500;
 		color: var(--text-primary);
+		text-overflow: ellipsis;
 	}
 
 	.col-stop {

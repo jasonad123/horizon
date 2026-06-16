@@ -1,6 +1,4 @@
-import { getMinutesUntil } from './timeUtils';
-
 export function shouldShowDeparture(departureTime: number): boolean {
-	const minutes = getMinutesUntil(departureTime);
-	return minutes >= 0 && minutes <= 120;
+	const diffMs = departureTime * 1000 - Date.now();
+	return diffMs > -30000 && diffMs <= 130 * 60000;
 }
