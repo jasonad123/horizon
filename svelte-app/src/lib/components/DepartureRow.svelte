@@ -23,7 +23,17 @@
 		return () => clearInterval(id);
 	});
 
-	let stopLabel = $derived(itinerary.closest_stop?.stop_code ?? '');
+	let stopLabel = $derived.by(() => {
+		const stop = itinerary.closest_stop;
+		if (!stop) return '';
+		if (stop.stop_code) return stop.stop_code;
+		// No stop_code — use the trailing segment of stop_name (after last " - ")
+		// capped at 12 chars so it fits the column without ellipsis
+		const name = stop.stop_name || '';
+		const after = name.lastIndexOf(' - ');
+		const label = after > -1 ? name.slice(after + 3) : name;
+		return label.length > 12 ? label.slice(0, 11) + '…' : label;
+	});
 
 	let destination = $derived(
 		itinerary.merged_headsign || itinerary.direction_headsign || itinerary.headsign || ''

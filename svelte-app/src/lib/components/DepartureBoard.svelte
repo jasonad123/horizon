@@ -29,10 +29,13 @@
 		const entries: DepartureEntry[] = [];
 		for (const route of routes) {
 			for (const itinerary of route.itineraries ?? []) {
-				for (const item of itinerary.schedule_items ?? []) {
-					if (!shouldShowDeparture(item.departure_time)) continue;
-					entries.push({ route, itinerary, item });
-				}
+				// One row per direction: pick the soonest upcoming departure only.
+				// This keeps the board stable — the direction is always visible and
+				// rolls forward to the next departure when the current one passes.
+				const next = (itinerary.schedule_items ?? [])
+					.filter((item) => shouldShowDeparture(item.departure_time))
+					.sort((a, b) => a.departure_time - b.departure_time)[0];
+				if (next) entries.push({ route, itinerary, item: next });
 			}
 		}
 		return entries.sort((a, b) => a.item.departure_time - b.item.departure_time);
