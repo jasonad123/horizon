@@ -1,0 +1,338 @@
+name: Build and publish Docker image
+
+on:
+  push:
+    tags:
+      - 'v*'  # Semantic version tags (v1.2.3, v1.2.3-beta.1, v1.2.3-rc.2, etc.)
+    paths-ignore: # Skip builds for doc-only changes (saves build minutes)
+      - '**.md'
+      - 'docs/**'
+      - '.github/**'
+      - '!.github/workflows/docker-publish.yml'
+  workflow_dispatch: # Allow manual triggering
+    inputs:
+      release_type:
+        description: 'Release type'
+        required: true
+        type: choice
+        options:
+          - beta
+          - latest
+          - branch-test
+        default: 'branch-test'
+      custom_tag:
+        description: 'Custom tag (optional, e.g., "my-feature")'
+        required: false
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+  # Convert repository name to lowercase for GitHub Container Registry
+  IMAGE_NAME: ${{ github.repository_owner }}/horizon
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    # Cancel redundant builds to save build minutes
+    concurrency:
+      group: docker-build-${{ github.ref }}
+      cancel-in-progress: true
+
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      is_tag: ${{ steps.version.outputs.is_tag }}
+      is_prerelease: ${{ steps.version.outputs.is_prerelease }}
+      image_digest: ${{ steps.build.outputs.digest }}
+      release_type: ${{ steps.version.outputs.release_type }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+    
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a # v4.0.0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
+
+      - name: Extract version info
+        id: version
+        run: |
+          SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-7)
+          BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/} | sed 's/\//-/g')
+
+          # Handle semantic version tags (v1.2.3, v1.2.3-beta.1, v1.2.3-rc.2, etc.)
+          if [[ $GITHUB_REF == refs/tags/v* ]]; then
+            # Extract version from tag (e.g., v1.2.3 -> 1.2.3, v1.2.3-beta.1 -> 1.2.3-beta.1)
+            VERSION=${GITHUB_REF#refs/tags/v}
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "is_tag=true" >> $GITHUB_OUTPUT
+
+            # Parse semantic version prerelease identifier (e.g., 1.2.3-beta.1 -> beta)
+            if [[ $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+-([a-zA-Z]+) ]]; then
+              PRERELEASE_ID=${BASH_REMATCH[1]}
+              echo "release_type=${PRERELEASE_ID}" >> $GITHUB_OUTPUT
+              echo "is_prerelease=true" >> $GITHUB_OUTPUT
+            else
+              # Stable release (no prerelease identifier)
+              echo "release_type=stable" >> $GITHUB_OUTPUT
+              echo "is_prerelease=false" >> $GITHUB_OUTPUT
+            fi
+
+          # Handle manual workflow dispatch
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            RELEASE_TYPE="${{ inputs.release_type }}"
+            echo "release_type=$RELEASE_TYPE" >> $GITHUB_OUTPUT
+            echo "is_tag=false" >> $GITHUB_OUTPUT
+
+            if [[ "$RELEASE_TYPE" == "beta" ]]; then
+              # Beta release - use timestamp for unique versioning
+              TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+              if [[ -n "${{ inputs.custom_tag }}" ]]; then
+                CUSTOM=$(echo "${{ inputs.custom_tag }}" | sed 's/[^a-zA-Z0-9._-]/-/g')
+                echo "version=beta-${CUSTOM}-${SHORT_SHA}" >> $GITHUB_OUTPUT
+              else
+                echo "version=beta-${TIMESTAMP}-${SHORT_SHA}" >> $GITHUB_OUTPUT
+              fi
+              echo "is_prerelease=true" >> $GITHUB_OUTPUT
+
+            elif [[ "$RELEASE_TYPE" == "latest" ]]; then
+              # Latest release from manual trigger
+              echo "version=latest-$SHORT_SHA" >> $GITHUB_OUTPUT
+              echo "is_prerelease=false" >> $GITHUB_OUTPUT
+
+            else
+              # Branch test - sanitized branch name + SHA
+              if [[ -n "${{ inputs.custom_tag }}" ]]; then
+                CUSTOM=$(echo "${{ inputs.custom_tag }}" | sed 's/[^a-zA-Z0-9._-]/-/g')
+                echo "version=${CUSTOM}-${SHORT_SHA}" >> $GITHUB_OUTPUT
+              else
+                echo "version=${BRANCH_NAME}-${SHORT_SHA}" >> $GITHUB_OUTPUT
+              fi
+              echo "is_prerelease=false" >> $GITHUB_OUTPUT
+            fi
+
+          # Handle automatic branch pushes (main only)
+          elif [[ $GITHUB_REF == refs/heads/* ]]; then
+            # Main branch gets edge treatment (bleeding edge builds)
+            echo "release_type=release-branch" >> $GITHUB_OUTPUT
+            echo "version=edge-$SHORT_SHA" >> $GITHUB_OUTPUT
+            echo "is_prerelease=false" >> $GITHUB_OUTPUT
+            echo "is_tag=false" >> $GITHUB_OUTPUT
+
+          # Fallback
+          else
+            echo "version=latest-$SHORT_SHA" >> $GITHUB_OUTPUT
+            echo "is_tag=false" >> $GITHUB_OUTPUT
+            echo "release_type=unknown" >> $GITHUB_OUTPUT
+            echo "is_prerelease=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Extract metadata and generate tags
+        id: meta
+        uses: docker/metadata-action@80c7e94dd9b9319bd5eb7a0e0fe9291e23a2a2e9 # v6
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            # For main branch push, tag as edge (bleeding edge) with commit SHA
+            type=raw,value=edge,enable=${{ steps.version.outputs.release_type == 'release-branch' }}
+            type=raw,value=${{ steps.version.outputs.version }},enable=${{ steps.version.outputs.release_type == 'release-branch' }}
+
+            # For stable version tags (v1.2.3), tag with version number and latest
+            type=raw,value=${{ steps.version.outputs.version }},enable=${{ steps.version.outputs.release_type == 'stable' }}
+            type=raw,value=latest,enable=${{ steps.version.outputs.release_type == 'stable' }}
+
+            # For beta prerelease tags (v1.2.3-beta.1), tag with version and beta
+            type=raw,value=${{ steps.version.outputs.version }},enable=${{ steps.version.outputs.release_type == 'beta' }}
+            type=raw,value=beta,enable=${{ steps.version.outputs.release_type == 'beta' }}
+
+            # For rc prerelease tags (v1.2.3-rc.1), tag with version and rc
+            type=raw,value=${{ steps.version.outputs.version }},enable=${{ steps.version.outputs.release_type == 'rc' }}
+            type=raw,value=rc,enable=${{ steps.version.outputs.release_type == 'rc' }}
+
+            # For alpha prerelease tags (v1.2.3-alpha.1), tag with version and alpha
+            type=raw,value=${{ steps.version.outputs.version }},enable=${{ steps.version.outputs.release_type == 'alpha' }}
+            type=raw,value=alpha,enable=${{ steps.version.outputs.release_type == 'alpha' }}
+
+            # For backport releases (v1.2.3-backport.1), tag with version and backport (no latest)
+            type=raw,value=${{ steps.version.outputs.version }},enable=${{ steps.version.outputs.release_type == 'backport' }}
+            type=raw,value=backport,enable=${{ steps.version.outputs.release_type == 'backport' }}
+
+            # For manual "latest" releases
+            type=raw,value=latest,enable=${{ steps.version.outputs.release_type == 'latest' }}
+            type=raw,value=${{ steps.version.outputs.version }},enable=${{ steps.version.outputs.release_type == 'latest' }}
+
+            # For branch test builds
+            type=raw,value=${{ steps.version.outputs.version }},enable=${{ steps.version.outputs.release_type == 'branch-test' }}
+          labels: |
+            org.opencontainers.image.title=Horizon
+            org.opencontainers.image.description=Use the Transit API to show real-time transit departures on your TV or digital display.
+            org.opencontainers.image.authors=Horizon Contributors
+            org.opencontainers.image.url=https://github.com/${{ github.repository }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.version=${{ steps.version.outputs.version }}
+            org.opencontainers.image.created=${{ github.run_id }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          # Disable provenance and SBOM to prevent manifest issues
+          provenance: false
+          sbom: false
+
+      - name: Verify pushed images
+        run: |
+          echo "Verifying pushed images..."
+          echo "Image digest: ${{ steps.build.outputs.digest }}"
+          echo "Tags:"
+          echo '${{ steps.meta.outputs.tags }}' | while read -r tag; do
+            if [[ -n "$tag" ]]; then
+              echo "Checking: $tag"
+              # Use docker manifest inspect to verify each tag exists
+              if docker manifest inspect "$tag" > /dev/null 2>&1; then
+                echo "$tag exists and is accessible"
+              else
+                echo "$tag verification failed"
+                exit 1
+              fi
+            fi
+          done
+
+      - name: Generate summary
+        run: |
+          echo "## Docker Image Published Successfully" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Add version info based on release type
+          RELEASE_TYPE="${{ steps.version.outputs.release_type }}"
+          case "$RELEASE_TYPE" in
+            "stable")
+              echo "**Release Type:** Stable Release" >> $GITHUB_STEP_SUMMARY
+              echo "**Version:** \`v${{ steps.version.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+              ;;
+            "beta")
+              echo "**Release Type:** Beta Prerelease" >> $GITHUB_STEP_SUMMARY
+              echo "**Version:** \`v${{ steps.version.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+              ;;
+            "rc")
+              echo "**Release Type:** Release Candidate" >> $GITHUB_STEP_SUMMARY
+              echo "**Version:** \`v${{ steps.version.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+              ;;
+            "alpha")
+              echo "**Release Type:** Alpha Prerelease" >> $GITHUB_STEP_SUMMARY
+              echo "**Version:** \`v${{ steps.version.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+              ;;
+            "backport")
+              echo "**Release Type:** Backport Release (v3 API)" >> $GITHUB_STEP_SUMMARY
+              echo "**Version:** \`v${{ steps.version.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+              ;;
+            "latest")
+              echo "**Release Type:** Manual Latest Release" >> $GITHUB_STEP_SUMMARY
+              echo "**Version:** \`${{ steps.version.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+              ;;
+            "branch-test")
+              echo "**Release Type:** Branch Test Build" >> $GITHUB_STEP_SUMMARY
+              echo "**Version:** \`${{ steps.version.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+              ;;
+            "release-branch")
+              echo "**Release Type:** Edge Release (from main branch)" >> $GITHUB_STEP_SUMMARY
+              echo "**Version:** \`${{ steps.version.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+              ;;
+          esac
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "**Image:** \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Digest:** \`${{ steps.build.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Tags:**" >> $GITHUB_STEP_SUMMARY
+          echo '${{ steps.meta.outputs.tags }}' | sed 's/^/- `/' | sed 's/$/`/' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Provide appropriate pull commands based on release type
+          echo "**Pull Commands:**" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          case "$RELEASE_TYPE" in
+            "stable")
+              echo "# Latest stable release" >> $GITHUB_STEP_SUMMARY
+              echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "# Specific version" >> $GITHUB_STEP_SUMMARY
+              echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+              ;;
+            "beta")
+              echo "# Latest beta prerelease" >> $GITHUB_STEP_SUMMARY
+              echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:beta" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "# Specific beta version" >> $GITHUB_STEP_SUMMARY
+              echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+              ;;
+            "rc")
+              echo "# Latest release candidate" >> $GITHUB_STEP_SUMMARY
+              echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:rc" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "# Specific RC version" >> $GITHUB_STEP_SUMMARY
+              echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+              ;;
+            "alpha")
+              echo "# Latest alpha prerelease" >> $GITHUB_STEP_SUMMARY
+              echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:alpha" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "# Specific alpha version" >> $GITHUB_STEP_SUMMARY
+              echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+              ;;
+            "backport")
+              echo "# Latest backport release (v3 API)" >> $GITHUB_STEP_SUMMARY
+              echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:backport" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "# Specific backport version" >> $GITHUB_STEP_SUMMARY
+              echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+              ;;
+            "latest")
+              echo "# Latest release" >> $GITHUB_STEP_SUMMARY
+              echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "# Specific version" >> $GITHUB_STEP_SUMMARY
+              echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+              ;;
+            "branch-test")
+              echo "# Branch test build" >> $GITHUB_STEP_SUMMARY
+              echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+              ;;
+            "release-branch")
+              echo "# Edge (bleeding edge from main branch)" >> $GITHUB_STEP_SUMMARY
+              echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:edge" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "# Specific edge version" >> $GITHUB_STEP_SUMMARY
+              echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+              ;;
+          esac
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "*Built with semantic versioning strategy for Horizon*" >> $GITHUB_STEP_SUMMARY
+          echo "*Generated using agentic coding assistance*" >> $GITHUB_STEP_SUMMARY
