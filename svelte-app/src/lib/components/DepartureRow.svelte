@@ -34,11 +34,21 @@
 	let stopLabel = $derived.by(() => {
 		const stop = itinerary.closest_stop;
 		if (!stop) return '';
-		if (stop.stop_code) return stop.stop_code;
+
+		const code = stop.stop_code;
+		if (code) {
+			// Some agencies populate stop_code with their internal GTFS stop_id — a long
+			// pure-numeric string that has no meaning to passengers (e.g. "1001229").
+			// Meaningful codes are short: bay numbers ("4"), platform letters ("A"),
+			// or short stop references ("51752"). Treat 7+ digit strings as raw IDs.
+			if (!/^\d{7,}$/.test(code)) return code;
+		}
+
+		// Fall back to the trailing segment of stop_name after the last " - "
+		// (e.g. "Central Terminal - Bay 4" → "Bay 4"). CSS handles truncation.
 		const name = stop.stop_name || '';
-		const after = name.lastIndexOf(' - ');
-		const label = after > -1 ? name.slice(after + 3) : name;
-		return label.length > 12 ? label.slice(0, 11) + '…' : label;
+		const sep = name.lastIndexOf(' - ');
+		return sep > -1 ? name.slice(sep + 3) : name;
 	});
 
 	let destination = $derived(
@@ -77,15 +87,15 @@
 				</span>
 				{#if !currentItem.is_cancelled}
 					{#if currentItem.is_real_time}
-						<!-- Live signal icon -->
-						<svg class="status-icon rt" viewBox="0 0 16 16" fill="none" aria-label="Real time" title="Real time">
+						<svg class="status-icon rt" viewBox="0 0 16 16" fill="none" aria-label="Real time">
+							<title>Real time</title>
 							<circle cx="8" cy="11.5" r="2" fill="currentColor"/>
 							<path d="M4.5 7.5a5 5 0 0 1 7 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
 							<path d="M1.5 4.5a9.5 9.5 0 0 1 13 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
 						</svg>
 					{:else}
-						<!-- Clock icon -->
-						<svg class="status-icon sch" viewBox="0 0 16 16" fill="none" aria-label="Scheduled" title="Scheduled">
+						<svg class="status-icon sch" viewBox="0 0 16 16" fill="none" aria-label="Scheduled">
+							<title>Scheduled</title>
 							<circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/>
 							<path d="M8 4.5V8l2.5 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
 						</svg>
@@ -148,6 +158,7 @@
 		font-size: 0.88em;
 		color: var(--text-secondary);
 		text-align: center;
+		text-overflow: ellipsis;
 	}
 
 	.col-time {
