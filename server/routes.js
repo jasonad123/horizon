@@ -6,6 +6,7 @@ var logger = require('./config/logger');
 var packageJson = require('../package.json');
 
 module.exports = function (app) {
+	app.use('/api/images', require('./api/images'));
 	app.use('/api/stops', require('./api/stops'));
 	app.use('/api/routes', require('./api/routes'));
 	app.use('/api/config', require('./api/config'));
