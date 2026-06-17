@@ -147,9 +147,6 @@
 	<header class="setup-header">
 		<span class="setup-title">HORIZON SETUP</span>
 		<span class="step-indicator">
-			{#if oncancel}
-				<button class="btn-close-setup" onclick={oncancel} aria-label="Close setup">✕</button>
-			{/if}
 			{#each [1, 2, 3] as n (n)}
 				<span class="step-dot" class:active={step === n} class:done={step > n}>{n}</span>
 				{#if n < 3}<span class="step-line" class:done={step > n}></span>{/if}
@@ -346,6 +343,8 @@
 	<footer class="setup-footer">
 		{#if step > 1}
 			<button class="btn-back" onclick={() => (step -= 1)}>Back</button>
+		{:else if oncancel}
+			<button class="btn-back" onclick={oncancel}>Cancel</button>
 		{:else}
 			<span></span>
 		{/if}
@@ -448,7 +447,7 @@
 
 	.step-content {
 		width: 100%;
-		max-width: 560px;
+		max-width: clamp(480px, 55vw, 800px);
 	}
 
 	.step-heading {
@@ -512,7 +511,7 @@
 	}
 
 	.mode-btn {
-		padding: 22px 16px;
+		padding: clamp(20px, 2.5vh, 32px) clamp(16px, 2vw, 28px);
 		background: rgba(255, 255, 255, 0.03);
 		border: 1px solid var(--border-color);
 		border-radius: 8px;
@@ -522,7 +521,7 @@
 		transition: all 0.15s;
 		display: flex;
 		flex-direction: column;
-		gap: 8px;
+		gap: 10px;
 	}
 
 	.mode-btn:hover {
@@ -538,12 +537,12 @@
 	}
 
 	.mode-label {
-		font-size: 1.05em;
+		font-size: 2em;
 		font-weight: 700;
 	}
 
 	.mode-sub {
-		font-size: 0.82em;
+		font-size: 1.25em;
 		color: var(--text-muted);
 		line-height: 1.4;
 	}
@@ -552,21 +551,6 @@
 		color: var(--text-secondary);
 	}
 
-	.btn-close-setup {
-		background: transparent;
-		border: none;
-		color: var(--text-muted);
-		font-size: 1.1em;
-		cursor: pointer;
-		padding: 6px 10px;
-		border-radius: 4px;
-		transition: color 0.15s;
-		margin-left: 16px;
-	}
-
-	.btn-close-setup:hover {
-		color: var(--text-primary);
-	}
 
 	/* ── Picker (route + stop lists) ────────────────────────────── */
 	.picker {
