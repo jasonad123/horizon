@@ -1,24 +1,35 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
+	import { SvelteSet } from 'svelte/reactivity';
 	import { config, type FilterMode } from '$lib/stores/config';
 	import { findNearbyRoutes, type Route } from '$lib/services/nearby';
 	import { findNearbyStops, type Stop } from '$lib/services/stops';
 	import RouteIcon from './RouteIcon.svelte';
 
-	let { oncomplete }: { oncomplete: () => void } = $props();
+	let {
+		oncomplete,
+		oncancel
+	}: { oncomplete: () => void; oncancel?: () => void } = $props();
 
 	// ── Step 1: location ─────────────────────────────────────────────
 	let step = $state(1);
-	let draftLat = $state('');
-	let draftLon = $state('');
+	let draftCoords = $state('');
 	let geoLoading = $state(false);
 	let geoError = $state('');
 
-	let locationValid = $derived.by(() => {
-		const lat = parseFloat(draftLat);
-		const lon = parseFloat(draftLon);
-		return !isNaN(lat) && !isNaN(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
-	});
+	// Accepts "lat, lon", "lat lon", or "lat,lon"
+	function parseCoords(input: string): { lat: number; lon: number } | null {
+		const parts = input.trim().split(/[\s,]+/).filter(Boolean);
+		if (parts.length < 2) return null;
+		const lat = parseFloat(parts[0]);
+		const lon = parseFloat(parts[parts.length - 1]);
+		if (isNaN(lat) || isNaN(lon)) return null;
+		if (lat < -90 || lat > 90 || lon < -180 || lon > 180) return null;
+		return { lat, lon };
+	}
+
+	let parsedCoords = $derived(parseCoords(draftCoords));
+	let locationValid = $derived(parsedCoords !== null);
 
 	async function useMyLocation() {
 		if (!browser || !navigator.geolocation) {
@@ -31,8 +42,7 @@
 			const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
 				navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000 })
 			);
-			draftLat = pos.coords.latitude.toFixed(6);
-			draftLon = pos.coords.longitude.toFixed(6);
+			draftCoords = `${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}`;
 		} catch {
 			geoError = 'Could not get location. Enter coordinates manually.';
 		} finally {
@@ -42,8 +52,8 @@
 
 	// ── Step 2: what to show ─────────────────────────────────────────
 	let filterMode = $state<FilterMode>('all');
-	let selectedRouteIds = $state(new Set<string>());
-	let selectedStopIds = $state(new Set<string>());
+	let selectedRouteIds = new SvelteSet<string>();
+	let selectedStopIds = new SvelteSet<string>();
 
 	let nearbyRoutes = $state<Route[]>([]);
 	let nearbyStops = $state<Stop[]>([]);
@@ -55,10 +65,8 @@
 		pickerLoading = true;
 		pickerError = '';
 		try {
-			nearbyRoutes = await findNearbyRoutes(
-				{ latitude: parseFloat(draftLat), longitude: parseFloat(draftLon) },
-				1000
-			);
+			const c = parseCoords(draftCoords)!;
+			nearbyRoutes = await findNearbyRoutes({ latitude: c.lat, longitude: c.lon }, 1000);
 		} catch {
 			pickerError = 'Could not load nearby routes.';
 		} finally {
@@ -71,11 +79,8 @@
 		pickerLoading = true;
 		pickerError = '';
 		try {
-			nearbyStops = await findNearbyStops(
-				parseFloat(draftLat),
-				parseFloat(draftLon),
-				1000
-			);
+			const c = parseCoords(draftCoords)!;
+			nearbyStops = await findNearbyStops(c.lat, c.lon, 1000);
 		} catch {
 			pickerError = 'Could not load nearby stops.';
 		} finally {
@@ -91,15 +96,11 @@
 	}
 
 	function toggleRoute(id: string) {
-		const next = new Set(selectedRouteIds);
-		next.has(id) ? next.delete(id) : next.add(id);
-		selectedRouteIds = next;
+		selectedRouteIds.has(id) ? selectedRouteIds.delete(id) : selectedRouteIds.add(id);
 	}
 
 	function toggleStop(id: string) {
-		const next = new Set(selectedStopIds);
-		next.has(id) ? next.delete(id) : next.add(id);
-		selectedStopIds = next;
+		selectedStopIds.has(id) ? selectedStopIds.delete(id) : selectedStopIds.add(id);
 	}
 
 	// ── Step 3: display settings ──────────────────────────────────────
@@ -115,9 +116,10 @@
 	}
 
 	function save() {
+		const c = parseCoords(draftCoords)!;
 		config.save({
 			title: draftTitle.trim() || 'Horizon',
-			location: { latitude: parseFloat(draftLat), longitude: parseFloat(draftLon) },
+			location: { latitude: c.lat, longitude: c.lon },
 			maxDistance: 1000,
 			filterMode,
 			selectedStopIds: filterMode === 'stops' ? [...selectedStopIds] : [],
@@ -145,7 +147,10 @@
 	<header class="setup-header">
 		<span class="setup-title">HORIZON SETUP</span>
 		<span class="step-indicator">
-			{#each [1, 2, 3] as n}
+			{#if oncancel}
+				<button class="btn-close-setup" onclick={oncancel} aria-label="Close setup">✕</button>
+			{/if}
+			{#each [1, 2, 3] as n (n)}
 				<span class="step-dot" class:active={step === n} class:done={step > n}>{n}</span>
 				{#if n < 3}<span class="step-line" class:done={step > n}></span>{/if}
 			{/each}
@@ -169,16 +174,15 @@
 
 				{#if geoError}<p class="field-error">{geoError}</p>{/if}
 
-				<div class="coord-fields">
-					<label class="field">
-						<span>Latitude</span>
-						<input type="text" inputmode="decimal" placeholder="e.g. 40.748817" bind:value={draftLat} />
-					</label>
-					<label class="field">
-						<span>Longitude</span>
-						<input type="text" inputmode="decimal" placeholder="e.g. -73.985428" bind:value={draftLon} />
-					</label>
-				</div>
+				<label class="field">
+					<span>Coordinates</span>
+					<input
+						type="text"
+						inputmode="decimal"
+						placeholder="40.748817, -73.985428"
+						bind:value={draftCoords}
+					/>
+				</label>
 			</div>
 		{/if}
 
@@ -232,25 +236,25 @@
 							</p>
 							<ul class="pick-list">
 								{#each nearbyRoutes as route (route.global_route_id)}
-									<li
-										class="pick-item"
-										class:selected={selectedRouteIds.has(route.global_route_id)}
-										role="checkbox"
-										aria-checked={selectedRouteIds.has(route.global_route_id)}
-										tabindex="0"
-										onclick={() => toggleRoute(route.global_route_id)}
-										onkeydown={(e) => e.key === ' ' && toggleRoute(route.global_route_id)}
-									>
-										<span class="pick-check" aria-hidden="true">
-											{selectedRouteIds.has(route.global_route_id) ? '✓' : ''}
-										</span>
-										<RouteIcon {route} />
-										<span class="pick-name">
-											<span class="pick-primary">{route.route_long_name || route.route_short_name}</span>
-											{#if route.route_network_name}
-												<span class="pick-meta">{route.route_network_name}</span>
-											{/if}
-										</span>
+									<li class="pick-item" class:selected={selectedRouteIds.has(route.global_route_id)}>
+										<label class="pick-label">
+											<input
+												type="checkbox"
+												class="pick-checkbox"
+												checked={selectedRouteIds.has(route.global_route_id)}
+												onchange={() => toggleRoute(route.global_route_id)}
+											/>
+											<span class="pick-check" aria-hidden="true">
+												{selectedRouteIds.has(route.global_route_id) ? '✓' : ''}
+											</span>
+											<RouteIcon {route} />
+											<span class="pick-name">
+												<span class="pick-primary">{route.route_long_name || route.route_short_name}</span>
+												{#if route.route_network_name}
+													<span class="pick-meta">{route.route_network_name}</span>
+												{/if}
+											</span>
+										</label>
 									</li>
 								{/each}
 							</ul>
@@ -275,27 +279,27 @@
 							</p>
 							<ul class="pick-list">
 								{#each nearbyStops as stop (stop.global_stop_id)}
-									<li
-										class="pick-item"
-										class:selected={selectedStopIds.has(stop.global_stop_id)}
-										role="checkbox"
-										aria-checked={selectedStopIds.has(stop.global_stop_id)}
-										tabindex="0"
-										onclick={() => toggleStop(stop.global_stop_id)}
-										onkeydown={(e) => e.key === ' ' && toggleStop(stop.global_stop_id)}
-									>
-										<span class="pick-check" aria-hidden="true">
-											{selectedStopIds.has(stop.global_stop_id) ? '✓' : ''}
-										</span>
-										<span class="stop-code-badge">
-											{stop.stop_code || modeLabel(stop.route_type)}
-										</span>
-										<span class="pick-name">
-											<span class="pick-primary">{stop.stop_name}</span>
-											{#if stop.distance != null}
-												<span class="pick-meta">{Math.round(stop.distance)}m</span>
-											{/if}
-										</span>
+									<li class="pick-item" class:selected={selectedStopIds.has(stop.global_stop_id)}>
+										<label class="pick-label">
+											<input
+												type="checkbox"
+												class="pick-checkbox"
+												checked={selectedStopIds.has(stop.global_stop_id)}
+												onchange={() => toggleStop(stop.global_stop_id)}
+											/>
+											<span class="pick-check" aria-hidden="true">
+												{selectedStopIds.has(stop.global_stop_id) ? '✓' : ''}
+											</span>
+											<span class="stop-code-badge">
+												{stop.stop_code || modeLabel(stop.route_type)}
+											</span>
+											<span class="pick-name">
+												<span class="pick-primary">{stop.stop_name}</span>
+												{#if stop.distance != null}
+													<span class="pick-meta">{Math.round(stop.distance)}m</span>
+												{/if}
+											</span>
+										</label>
 									</li>
 								{/each}
 							</ul>
@@ -499,32 +503,26 @@
 		margin: -16px 0 20px;
 	}
 
-	.coord-fields {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: 16px;
-	}
-
 	/* ── Step 2: mode buttons ───────────────────────────────────── */
 	.mode-buttons {
 		display: grid;
 		grid-template-columns: repeat(3, 1fr);
-		gap: 12px;
+		gap: 14px;
 		margin-bottom: 28px;
 	}
 
 	.mode-btn {
-		padding: 16px 12px;
+		padding: 22px 16px;
 		background: rgba(255, 255, 255, 0.03);
 		border: 1px solid var(--border-color);
-		border-radius: 6px;
+		border-radius: 8px;
 		color: var(--text-secondary);
 		cursor: pointer;
 		text-align: left;
 		transition: all 0.15s;
 		display: flex;
 		flex-direction: column;
-		gap: 6px;
+		gap: 8px;
 	}
 
 	.mode-btn:hover {
@@ -534,22 +532,40 @@
 
 	.mode-btn.active {
 		border-color: var(--color-accent);
+		border-width: 2px;
 		background: rgba(58, 123, 213, 0.1);
 		color: var(--text-primary);
 	}
 
 	.mode-label {
-		font-size: 0.95em;
-		font-weight: 600;
+		font-size: 1.05em;
+		font-weight: 700;
 	}
 
 	.mode-sub {
-		font-size: 0.78em;
+		font-size: 0.82em;
 		color: var(--text-muted);
+		line-height: 1.4;
 	}
 
 	.mode-btn.active .mode-sub {
 		color: var(--text-secondary);
+	}
+
+	.btn-close-setup {
+		background: transparent;
+		border: none;
+		color: var(--text-muted);
+		font-size: 1.1em;
+		cursor: pointer;
+		padding: 6px 10px;
+		border-radius: 4px;
+		transition: color 0.15s;
+		margin-left: 16px;
+	}
+
+	.btn-close-setup:hover {
+		color: var(--text-primary);
 	}
 
 	/* ── Picker (route + stop lists) ────────────────────────────── */
@@ -584,10 +600,25 @@
 		overflow-y: auto;
 	}
 
-	.pick-item {
+	.pick-checkbox {
+		position: absolute;
+		opacity: 0;
+		width: 0;
+		height: 0;
+		pointer-events: none;
+	}
+
+	.pick-label {
 		display: flex;
 		align-items: center;
 		gap: 12px;
+		width: 100%;
+		cursor: pointer;
+	}
+
+	.pick-item {
+		display: flex;
+		align-items: center;
 		padding: 12px 16px;
 		border-bottom: 1px solid var(--border-color);
 		cursor: pointer;

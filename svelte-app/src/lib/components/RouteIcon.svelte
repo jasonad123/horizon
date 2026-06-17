@@ -35,8 +35,8 @@
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		min-width: 42px;
-		height: 42px;
+		min-width: clamp(42px, 3.5vw, 58px);
+		height: clamp(42px, 3.5vw, 58px);
 		padding: 0 8px;
 		border-radius: 5px;
 		font-weight: 800;

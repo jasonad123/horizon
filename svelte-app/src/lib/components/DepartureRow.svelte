@@ -4,7 +4,17 @@
 	import { shouldShowDeparture } from '$lib/utils/departureFilters';
 	import type { Route, Itinerary, ScheduleItem } from '$lib/services/nearby';
 
-	let { route, itinerary }: { route: Route; itinerary: Itinerary } = $props();
+	let {
+		route,
+		itinerary,
+		showBadge = true,
+		groupIndex = 0
+	}: {
+		route: Route;
+		itinerary: Itinerary;
+		showBadge?: boolean;
+		groupIndex?: number;
+	} = $props();
 
 	let now = $state(Date.now());
 
@@ -13,8 +23,6 @@
 		return () => clearInterval(id);
 	});
 
-	// Re-evaluates every second. When the current departure passes,
-	// automatically rolls forward to the next one without waiting for a poll.
 	let currentItem = $derived.by((): ScheduleItem | undefined =>
 		(itinerary.schedule_items ?? [])
 			.filter((item) => shouldShowDeparture(item.departure_time, now))
@@ -36,14 +44,27 @@
 	let destination = $derived(
 		itinerary.merged_headsign || itinerary.direction_headsign || itinerary.headsign || ''
 	);
+
+	let hasAlert = $derived((route.alerts?.length ?? 0) > 0);
+	let isAlt = $derived(groupIndex % 2 !== 0);
 </script>
 
 {#if currentItem}
-	<tr class="departure-row" class:is-cancelled={currentItem.is_cancelled}>
+	<tr class="departure-row" class:alt={isAlt} class:is-cancelled={currentItem.is_cancelled}>
 		<td class="col-route">
-			<RouteIcon {route} />
+			{#if showBadge}
+				<RouteIcon {route} />
+			{/if}
 		</td>
 		<td class="col-destination" class:cancelled-text={currentItem.is_cancelled}>
+			{#if hasAlert}
+				<svg class="alert-icon" viewBox="0 0 16 16" fill="none" aria-label="Service alert">
+					<path d="M8 2L14.5 13H1.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+					<path d="M8 6.5v3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+					<circle cx="8" cy="11.75" r="0.75" fill="currentColor"/>
+				</svg>
+			{/if}
+			{#if !showBadge}<span class="direction-indent"></span>{/if}
 			{destination}
 		</td>
 		<td class="col-stop">
@@ -55,9 +76,20 @@
 					{currentItem.is_cancelled ? 'Cancelled' : countdown}
 				</span>
 				{#if !currentItem.is_cancelled}
-					<span class="status-badge" class:rt={currentItem.is_real_time} class:sch={!currentItem.is_real_time}>
-						{currentItem.is_real_time ? 'RT' : 'SCH'}
-					</span>
+					{#if currentItem.is_real_time}
+						<!-- Live signal icon -->
+						<svg class="status-icon rt" viewBox="0 0 16 16" fill="none" aria-label="Real time" title="Real time">
+							<circle cx="8" cy="11.5" r="2" fill="currentColor"/>
+							<path d="M4.5 7.5a5 5 0 0 1 7 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+							<path d="M1.5 4.5a9.5 9.5 0 0 1 13 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+						</svg>
+					{:else}
+						<!-- Clock icon -->
+						<svg class="status-icon sch" viewBox="0 0 16 16" fill="none" aria-label="Scheduled" title="Scheduled">
+							<circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/>
+							<path d="M8 4.5V8l2.5 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+						</svg>
+					{/if}
 				{/if}
 			</div>
 		</td>
@@ -70,11 +102,12 @@
 		border-bottom: 1px solid var(--border-color);
 	}
 
-	.departure-row:nth-child(even) {
+	/* Alternate shading per route group, not per individual row */
+	.departure-row.alt {
 		background: var(--bg-row-alt);
 	}
 
-	.departure-row.is-cancelled {
+.departure-row.is-cancelled {
 		opacity: 0.5;
 	}
 
@@ -86,8 +119,8 @@
 	}
 
 	.col-route {
-		width: 68px;
-		padding: 0 12px;
+		width: var(--col-route);
+		padding: 0 10px;
 		text-align: center;
 	}
 
@@ -100,29 +133,40 @@
 		text-overflow: ellipsis;
 	}
 
+	.direction-indent {
+		display: inline-block;
+		vertical-align: middle;
+		width: 2px;
+		height: 1.1em;
+		background: var(--border-color);
+		border-radius: 1px;
+		margin-right: 10px;
+	}
+
 	.col-stop {
-		width: 140px;
-		font-size: 0.9em;
+		width: var(--col-stop);
+		font-size: 0.88em;
 		color: var(--text-secondary);
 		text-align: center;
 	}
 
 	.col-time {
-		width: 150px;
+		width: var(--col-time);
 	}
 
 	.time-inner {
 		display: flex;
 		align-items: center;
 		justify-content: flex-end;
-		gap: 8px;
+		gap: 10px;
+		padding-right: 4px;
 	}
 
 	.countdown {
 		font-size: 1.15em;
 		font-weight: 700;
 		color: var(--text-primary);
-		min-width: 58px;
+		min-width: 60px;
 		text-align: right;
 	}
 
@@ -131,21 +175,29 @@
 		color: var(--color-cancelled);
 	}
 
-	.status-badge {
-		font-size: 0.65em;
-		font-weight: 700;
-		padding: 3px 5px;
-		border-radius: 3px;
-		letter-spacing: 0.05em;
+	/* Status icons */
+	.status-icon {
+		width: clamp(16px, 1.4vw, 22px);
+		height: clamp(16px, 1.4vw, 22px);
+		flex-shrink: 0;
 	}
 
-	.status-badge.rt {
-		background: rgba(76, 222, 128, 0.15);
+	.status-icon.rt {
 		color: var(--color-realtime);
 	}
 
-	.status-badge.sch {
-		background: rgba(200, 168, 64, 0.15);
+	.status-icon.sch {
 		color: var(--color-scheduled);
+		opacity: 0.7;
+	}
+
+	/* Alert icon — inline before destination text */
+	.alert-icon {
+		display: inline-block;
+		vertical-align: middle;
+		width: clamp(13px, 1.1vw, 17px);
+		height: clamp(13px, 1.1vw, 17px);
+		color: var(--color-alert);
+		margin-right: 7px;
 	}
 </style>

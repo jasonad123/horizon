@@ -10,6 +10,8 @@
 	interface DirectionEntry {
 		route: Route;
 		itinerary: Itinerary;
+		showBadge: boolean;  // true only for the first direction in each route group
+		groupIndex: number;  // increments per route — drives alternating row shading
 	}
 
 	let departures = $state<DirectionEntry[]>([]);
@@ -31,15 +33,27 @@
 	}
 
 	function buildDirections(routes: Route[]): DirectionEntry[] {
-		const entries: DirectionEntry[] = [];
+		type Group = { route: Route; itineraries: Itinerary[]; soonest: number };
+		const groups: Group[] = [];
+
 		for (const route of routes) {
-			for (const itinerary of route.itineraries ?? []) {
-				if ((itinerary.schedule_items ?? []).some((i) => shouldShowDeparture(i.departure_time))) {
-					entries.push({ route, itinerary });
-				}
-			}
+			const valid = (route.itineraries ?? []).filter((itin) =>
+				(itin.schedule_items ?? []).some((i) => shouldShowDeparture(i.departure_time))
+			);
+			if (valid.length === 0) continue;
+			valid.sort((a, b) => nextDepartureTime(a) - nextDepartureTime(b));
+			groups.push({ route, itineraries: valid, soonest: nextDepartureTime(valid[0]) });
 		}
-		return entries.sort((a, b) => nextDepartureTime(a.itinerary) - nextDepartureTime(b.itinerary));
+
+		groups.sort((a, b) => a.soonest - b.soonest);
+
+		const entries: DirectionEntry[] = [];
+		groups.forEach((g, groupIndex) => {
+			g.itineraries.forEach((itinerary, i) => {
+				entries.push({ route: g.route, itinerary, showBadge: i === 0, groupIndex });
+			});
+		});
+		return entries;
 	}
 
 	async function fetchDepartures() {
@@ -163,7 +177,12 @@
 			</thead>
 			<tbody>
 				{#each departures as entry (entry.route.global_route_id + '-' + (entry.itinerary.direction_id ?? '') + '-' + (entry.itinerary.merged_headsign || entry.itinerary.headsign || ''))}
-					<DepartureRow route={entry.route} itinerary={entry.itinerary} />
+					<DepartureRow
+						route={entry.route}
+						itinerary={entry.itinerary}
+						showBadge={entry.showBadge}
+						groupIndex={entry.groupIndex}
+					/>
 				{/each}
 			</tbody>
 		</table>
@@ -200,18 +219,18 @@
 	}
 
 	thead th.col-route {
-		width: 68px;
-		padding: 12px 12px;
+		width: var(--col-route);
+		padding: 12px 10px;
 		text-align: center;
 	}
 
 	thead th.col-stop {
-		width: 140px;
+		width: var(--col-stop);
 		text-align: center;
 	}
 
 	thead th.col-time {
-		width: 150px;
+		width: var(--col-time);
 		text-align: right;
 	}
 

@@ -38,7 +38,10 @@
 <svelte:window onkeydown={handleKeydown} />
 
 {#if needsSetup || showSetup}
-	<SetupOverlay oncomplete={onSetupComplete} />
+	<SetupOverlay
+		oncomplete={onSetupComplete}
+		oncancel={showSetup && !needsSetup ? () => { showSetup = false; } : undefined}
+	/>
 {:else}
 	<div class="screen">
 		<header class="pids-header">
