@@ -31,9 +31,9 @@ You'll need display hardware to show the interface. Options range from:
 
 **Best for**: Organizations comfortable with cloud PaaS platforms and looking for quickest setup
 
-Railway provides a one-click deployment experience (button coming soon):
+Railway provides a one-click deployment experience:
 
-<!-- [![Deploy on Railway](https://railway.com/button.svg)]() -->
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/yvxqKF?referralCode=9qzudG&utm_medium=integration&utm_source=template&utm_campaign=generic)
 
 **What happens when you click**:
 
