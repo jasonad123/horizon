@@ -217,9 +217,9 @@
 	.alert-icon {
 		display: inline-block;
 		vertical-align: middle;
-		width: clamp(13px, 1.1vw, 17px);
-		height: clamp(13px, 1.1vw, 17px);
+		width: clamp(17px, 1.5vw, 24px);
+		height: clamp(17px, 1.5vw, 24px);
 		color: var(--color-alert);
-		margin-right: 7px;
+		margin-right: 8px;
 	}
 </style>

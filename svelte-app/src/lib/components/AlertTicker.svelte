@@ -8,41 +8,46 @@
 
 	let { alerts }: { alerts: TickerAlert[] } = $props();
 
-	let currentIndex = $state(0);
+	// Join all alerts into one continuous ticker string
+	let tickerText = $derived(
+		alerts
+			.map((a) => {
+				const label = a.routeLabel ? `[${a.routeLabel}]` : '';
+				const text = a.alert.title || a.alert.description;
+				return label ? `${label}  ${text}` : text;
+			})
+			.join('          •          ')
+	);
 
-	$effect(() => {
-		// Re-read alerts to track it as a dependency; reset and restart cycle
-		const count = alerts.length;
-		currentIndex = 0;
-		if (count <= 1) return;
-		const id = setInterval(() => {
-			currentIndex = (currentIndex + 1) % count;
-		}, 8000);
-		return () => clearInterval(id);
-	});
+	// ~0.22s per character so longer alerts scroll at the same readable pace; min 15s
+	let duration = $derived(`${Math.max(15, Math.ceil(tickerText.length * 0.22))}s`);
 
-	let current = $derived(alerts.length > 0 ? alerts[currentIndex % alerts.length] : null);
-
+	// Show the worst severity colour
 	let severityColor = $derived(
-		current?.alert.severity === 'Severe'
+		alerts.some((a) => a.alert.severity === 'Severe')
 			? 'var(--color-cancelled)'
-			: current?.alert.severity === 'Info'
+			: alerts.some((a) => a.alert.severity === 'Info')
 				? 'var(--color-accent)'
 				: 'var(--color-alert)'
 	);
-
-	let displayText = $derived(current ? (current.alert.title || current.alert.description) : '');
 </script>
 
-{#if current}
+{#if alerts.length > 0}
 	<div class="ticker" style="--sev-color: {severityColor}">
-		<span class="sev-dot" aria-hidden="true"></span>
-		{#if current.routeLabel}
-			<span class="route-label">{current.routeLabel}</span>
-		{/if}
-		<span class="ticker-text">{displayText}</span>
+		<svg class="sev-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+			<path d="M8 2L14.5 13H1.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+			<path d="M8 6.5v3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+			<circle cx="8" cy="11.75" r="0.85" fill="currentColor"/>
+		</svg>
+
+		<div class="scroll-wrap">
+			{#key tickerText}
+				<span class="scroll-text" style="--duration: {duration}">{tickerText}</span>
+			{/key}
+		</div>
+
 		{#if alerts.length > 1}
-			<span class="counter">{currentIndex + 1}/{alerts.length}</span>
+			<span class="count" aria-label="{alerts.length} alerts">{alerts.length}</span>
 		{/if}
 	</div>
 {/if}
@@ -50,45 +55,52 @@
 <style>
 	.ticker {
 		flex-shrink: 0;
-		height: clamp(48px, 5vh, 64px);
+		height: clamp(52px, 5.5vh, 70px);
 		background: color-mix(in srgb, var(--sev-color) 10%, var(--bg-primary));
 		border-top: 1px solid color-mix(in srgb, var(--sev-color) 35%, transparent);
 		display: flex;
 		align-items: center;
-		gap: 12px;
+		gap: 14px;
 		padding: 0 20px;
 		overflow: hidden;
 	}
 
-	.sev-dot {
-		width: clamp(7px, 0.6vw, 10px);
-		height: clamp(7px, 0.6vw, 10px);
-		border-radius: 50%;
-		background: var(--sev-color);
+	.sev-icon {
+		width: clamp(18px, 1.6vw, 26px);
+		height: clamp(18px, 1.6vw, 26px);
+		color: var(--sev-color);
 		flex-shrink: 0;
 	}
 
-	.route-label {
-		font-size: 0.82em;
+	.scroll-wrap {
+		flex: 1;
+		overflow: hidden;
+		min-width: 0;
+	}
+
+	.scroll-text {
+		display: inline-block;
+		white-space: nowrap;
+		font-size: clamp(0.88em, 1vw, 1em);
+		font-weight: 500;
+		color: var(--text-secondary);
+		/* padding-left pushes text fully off-screen right to start;
+		   translateX(-100%) travels the full element width back to the left */
+		padding-left: 100%;
+		animation: marquee var(--duration) linear infinite;
+	}
+
+	@keyframes marquee {
+		from { transform: translateX(0); }
+		to   { transform: translateX(-100%); }
+	}
+
+	.count {
+		font-size: 0.8em;
 		font-weight: 700;
 		color: var(--sev-color);
 		flex-shrink: 0;
 		white-space: nowrap;
-	}
-
-	.ticker-text {
-		font-size: 0.82em;
-		color: var(--text-secondary);
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		flex: 1;
-	}
-
-	.counter {
-		font-size: 0.75em;
-		color: var(--text-muted);
-		flex-shrink: 0;
-		white-space: nowrap;
+		opacity: 0.8;
 	}
 </style>
