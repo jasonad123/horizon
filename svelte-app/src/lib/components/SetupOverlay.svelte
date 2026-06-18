@@ -5,6 +5,7 @@
 	import { findNearbyRoutes, type Route } from '$lib/services/nearby';
 	import { findNearbyStops, type Stop } from '$lib/services/stops';
 	import RouteIcon from './RouteIcon.svelte';
+	import LocationPicker from './LocationPicker.svelte';
 
 	let {
 		oncomplete,
@@ -13,7 +14,12 @@
 
 	// ── Step 1: location ─────────────────────────────────────────────
 	let step = $state(1);
-	let draftCoords = $state('');
+	// Pre-populate from existing config so re-opening settings doesn't force re-entry
+	let draftCoords = $state(
+		$config.location
+			? `${$config.location.latitude.toFixed(6)}, ${$config.location.longitude.toFixed(6)}`
+			: ''
+	);
 	let geoLoading = $state(false);
 	let geoError = $state('');
 
@@ -29,7 +35,8 @@
 	}
 
 	let parsedCoords = $derived(parseCoords(draftCoords));
-	let locationValid = $derived(parsedCoords !== null);
+	// Valid if user typed/picked coords, or if an existing location is already saved
+	let locationValid = $derived(parsedCoords !== null || $config.location !== null);
 
 	async function useMyLocation() {
 		if (!browser || !navigator.geolocation) {
@@ -50,10 +57,17 @@
 		}
 	}
 
+	function onMapChange(lat: number, lon: number) {
+		draftCoords = `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+	}
+
+	let mapLat = $derived(parsedCoords?.lat ?? null);
+	let mapLon = $derived(parsedCoords?.lon ?? null);
+
 	// ── Step 2: what to show ─────────────────────────────────────────
-	let filterMode = $state<FilterMode>('all');
-	let selectedRouteIds = new SvelteSet<string>();
-	let selectedStopIds = new SvelteSet<string>();
+	let filterMode = $state<FilterMode>($config.filterMode ?? 'all');
+	let selectedRouteIds = new SvelteSet<string>($config.selectedRouteIds ?? []);
+	let selectedStopIds = new SvelteSet<string>($config.selectedStopIds ?? []);
 
 	let nearbyRoutes = $state<Route[]>([]);
 	let nearbyStops = $state<Stop[]>([]);
@@ -104,10 +118,10 @@
 	}
 
 	// ── Step 3: display settings ──────────────────────────────────────
-	let draftTitle = $state('Horizon');
-	let draftTimeFormat = $state<'HH:mm' | 'hh:mm A'>('HH:mm');
-	let draftMaxDepartures = $state(8);
-	let draftUseRouteIcons = $state(true);
+	let draftTitle = $state($config.title || 'Horizon');
+	let draftTimeFormat = $state<'HH:mm' | 'hh:mm A'>($config.timeFormat ?? 'HH:mm');
+	let draftMaxDepartures = $state($config.maxDepartures ?? 8);
+	let draftUseRouteIcons = $state($config.useRouteIcons !== false);
 
 	// ── Navigation ───────────────────────────────────────────────────
 	function goStep2() {
@@ -117,10 +131,14 @@
 	}
 
 	function save() {
-		const c = parseCoords(draftCoords)!;
+		const c = parsedCoords;
+		const existingLoc = $config.location;
+		const location = c
+			? { latitude: c.lat, longitude: c.lon }
+			: existingLoc ?? null;
 		config.save({
 			title: draftTitle.trim() || 'Horizon',
-			location: { latitude: c.lat, longitude: c.lon },
+			location,
 			maxDistance: 1000,
 			filterMode,
 			selectedStopIds: filterMode === 'stops' ? [...selectedStopIds] : [],
@@ -182,6 +200,8 @@
 						bind:value={draftCoords}
 					/>
 				</label>
+
+				<LocationPicker lat={mapLat} lon={mapLon} onchange={onMapChange} />
 			</div>
 		{/if}
 
