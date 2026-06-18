@@ -67,3 +67,4 @@ Screenshot*.png
 .meta/*
 research/*
 CLAUDE.md
+display_refs/*
