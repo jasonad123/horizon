@@ -24,17 +24,26 @@
 	} = $props();
 
 	let now = $state(Date.now());
+	let selectedIndex = $state(0);
 
 	$effect(() => {
 		const id = setInterval(() => { now = Date.now(); }, 1000);
 		return () => clearInterval(id);
 	});
 
+	// Reset selection when departures list changes shape (e.g. after a poll)
+	$effect(() => {
+		if (departures.length > 0 && selectedIndex >= departures.length) {
+			selectedIndex = 0;
+		}
+	});
+
 	const RT_ICONS = ['tabler:wifi-0', 'tabler:wifi-1', 'tabler:wifi-2', 'tabler:wifi'];
 	let rtIconIndex = $state(0);
 
 	$effect(() => {
-		const hasRt = departures.some((e) => currentItemFor(e)?.is_real_time);
+		const entry = departures[selectedIndex];
+		const hasRt = visibleItems(entry).some((i) => i.is_real_time);
 		if (!hasRt) return;
 		const id = setInterval(() => { rtIconIndex = (rtIconIndex + 1) % RT_ICONS.length; }, 800);
 		return () => clearInterval(id);
@@ -42,10 +51,11 @@
 
 	let rtIcon = $derived(RT_ICONS[rtIconIndex]);
 
-	function currentItemFor(entry: DirectionEntry): ScheduleItem | undefined {
+	function visibleItems(entry: DirectionEntry | undefined): ScheduleItem[] {
+		if (!entry) return [];
 		return (entry.itinerary.schedule_items ?? [])
 			.filter((item) => shouldShowDeparture(item.departure_time, now))
-			.sort((a, b) => a.departure_time - b.departure_time)[0];
+			.sort((a, b) => a.departure_time - b.departure_time);
 	}
 
 	function stopLabelFor(entry: DirectionEntry): string {
@@ -70,15 +80,31 @@
 		return entry.itinerary.merged_headsign || entry.itinerary.direction_headsign || entry.itinerary.headsign || '';
 	}
 
-	let featured = $derived(departures[0]);
-	let featuredItem = $derived(featured ? currentItemFor(featured) : undefined);
+	let active = $derived(departures[selectedIndex]);
+	let activeItems = $derived(visibleItems(active));
+	let featuredItem = $derived(activeItems[0]);
+	let subsequentItems = $derived(activeItems.slice(1));
 	let featuredCountdown = $derived(featuredItem ? formatCountdown(featuredItem.departure_time, now) : '');
-	let featuredStopLabel = $derived(featured ? stopLabelFor(featured) : '');
-	let featuredDestination = $derived(featured ? destinationFor(featured) : '');
-	let featuredHasAlert = $derived((featured?.route.alerts?.length ?? 0) > 0);
+	let featuredStopLabel = $derived(active ? stopLabelFor(active) : '');
+	let featuredDestination = $derived(active ? destinationFor(active) : '');
+	let featuredHasAlert = $derived((active?.route.alerts?.length ?? 0) > 0);
+	let hasMultiple = $derived(departures.length > 1);
 
-	let subsequent = $derived(departures.slice(1));
+	function prev() {
+		selectedIndex = (selectedIndex - 1 + departures.length) % departures.length;
+	}
+
+	function next() {
+		selectedIndex = (selectedIndex + 1) % departures.length;
+	}
+
+	function handleKey(e: KeyboardEvent) {
+		if (e.key === 'ArrowLeft') prev();
+		else if (e.key === 'ArrowRight') next();
+	}
 </script>
+
+<svelte:window onkeydown={handleKey} />
 
 <div class="platform-board">
 	<div class="content-area">
@@ -98,23 +124,55 @@
 				<span class="overlay-text">No departures scheduled</span>
 			</div>
 		{:else}
-			<div class="next-label">NEXT DEPARTURE</div>
-
-			<div class="featured-card" class:is-cancelled={featuredItem.is_cancelled}>
-				<div class="featured-route">
-					<RouteIcon route={featured.route} useIcons={$config.useRouteIcons} />
+			<!-- Direction selector (only shown when multiple directions available) -->
+			{#if hasMultiple}
+				<div class="direction-bar">
+					<button class="dir-btn" onclick={prev} aria-label="Previous direction">
+						<iconify-icon icon="tabler:chevron-left"></iconify-icon>
+					</button>
+					<div class="direction-info">
+						<span class="direction-label">
+							<RouteIcon route={active.route} useIcons={$config.useRouteIcons} />
+							<span class="direction-destination">{featuredDestination}</span>
+						</span>
+						<span class="direction-counter">{selectedIndex + 1} / {departures.length}</span>
+					</div>
+					<button class="dir-btn" onclick={next} aria-label="Next direction">
+						<iconify-icon icon="tabler:chevron-right"></iconify-icon>
+					</button>
 				</div>
-				<div class="featured-info">
-					<div class="featured-destination" class:cancelled-text={featuredItem.is_cancelled}>
+			{:else}
+				<div class="next-label">NEXT DEPARTURE</div>
+			{/if}
+
+			<!-- Featured next departure -->
+			<div class="featured-card" class:is-cancelled={featuredItem.is_cancelled}>
+				{#if !hasMultiple}
+					<div class="featured-route">
+						<RouteIcon route={active.route} useIcons={$config.useRouteIcons} />
+					</div>
+					<div class="featured-info">
+						<div class="featured-destination" class:cancelled-text={featuredItem.is_cancelled}>
+							{#if featuredHasAlert}
+								<iconify-icon class="alert-icon" icon="tabler:alert-triangle" aria-label="Service alert"></iconify-icon>
+							{/if}
+							{featuredDestination}
+						</div>
+						{#if featuredStopLabel}
+							<div class="featured-stop">{featuredStopLabel}</div>
+						{/if}
+					</div>
+				{:else}
+					<!-- When direction bar is shown, featured card is more compact -->
+					<div class="featured-info-wide">
+						{#if featuredStopLabel}
+							<div class="featured-stop">{featuredStopLabel}</div>
+						{/if}
 						{#if featuredHasAlert}
 							<iconify-icon class="alert-icon" icon="tabler:alert-triangle" aria-label="Service alert"></iconify-icon>
 						{/if}
-						{featuredDestination}
 					</div>
-					{#if featuredStopLabel}
-						<div class="featured-stop">{featuredStopLabel}</div>
-					{/if}
-				</div>
+				{/if}
 				<div class="featured-time">
 					<span class="featured-countdown" class:cancelled-text={featuredItem.is_cancelled}>
 						{featuredItem.is_cancelled ? 'Cancelled' : featuredCountdown}
@@ -129,36 +187,25 @@
 				</div>
 			</div>
 
-			{#if subsequent.length > 0}
+			<!-- Subsequent departures — same direction/itinerary only -->
+			{#if subsequentItems.length > 0}
 				<div class="subsequent-list">
-					{#each subsequent as entry (entry.route.global_route_id + '-' + (entry.itinerary.direction_id ?? '') + '-' + (entry.itinerary.merged_headsign || entry.itinerary.headsign || ''))}
-						{@const item = currentItemFor(entry)}
-						{@const dest = destinationFor(entry)}
-						{#if item}
-							<div class="sub-row" class:alt={entry.groupIndex % 2 !== 0} class:is-cancelled={item.is_cancelled}>
-								<div class="sub-route">
-									<RouteIcon route={entry.route} useIcons={$config.useRouteIcons} />
-								</div>
-								<div class="sub-destination" class:cancelled-text={item.is_cancelled}>
-									{#if (entry.route.alerts?.length ?? 0) > 0}
-										<iconify-icon class="alert-icon-sm" icon="tabler:alert-triangle" aria-label="Service alert"></iconify-icon>
+					{#each subsequentItems as item, i (item.departure_time)}
+						<div class="sub-row" class:alt={i % 2 !== 0} class:is-cancelled={item.is_cancelled}>
+							<div class="sub-index">{i + 2}</div>
+							<div class="sub-time-block">
+								<span class="sub-countdown" class:cancelled-text={item.is_cancelled}>
+									{item.is_cancelled ? 'Cancelled' : formatCountdown(item.departure_time, now)}
+								</span>
+								{#if !item.is_cancelled}
+									{#if item.is_real_time}
+										<iconify-icon class="status-icon-sm rt" icon={rtIcon} aria-label="Real time"></iconify-icon>
+									{:else}
+										<iconify-icon class="status-icon-sm sch" icon="tabler:clock" aria-label="Scheduled"></iconify-icon>
 									{/if}
-									{dest}
-								</div>
-								<div class="sub-time">
-									<span class="sub-countdown" class:cancelled-text={item.is_cancelled}>
-										{item.is_cancelled ? 'Cancelled' : formatCountdown(item.departure_time, now)}
-									</span>
-									{#if !item.is_cancelled}
-										{#if item.is_real_time}
-											<iconify-icon class="status-icon-sm rt" icon={rtIcon} aria-label="Real time"></iconify-icon>
-										{:else}
-											<iconify-icon class="status-icon-sm sch" icon="tabler:clock" aria-label="Scheduled"></iconify-icon>
-										{/if}
-									{/if}
-								</div>
+								{/if}
 							</div>
-						{/if}
+						</div>
 					{/each}
 				</div>
 			{/if}
@@ -207,13 +254,78 @@
 		color: var(--text-muted);
 	}
 
-	/* "NEXT DEPARTURE" label */
+	/* "NEXT DEPARTURE" label (single-direction case) */
 	.next-label {
 		font-size: 0.68em;
 		font-weight: 700;
 		letter-spacing: 0.12em;
 		text-transform: uppercase;
 		color: var(--text-muted);
+	}
+
+	/* Direction selector bar */
+	.direction-bar {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		background: var(--bg-header);
+		border: 1px solid var(--border-color);
+		border-radius: 6px;
+		padding: clamp(10px, 1.2vh, 16px) clamp(12px, 1.2vw, 18px);
+		flex-shrink: 0;
+	}
+
+	.dir-btn {
+		background: transparent;
+		border: 1px solid var(--border-color);
+		border-radius: 4px;
+		color: var(--text-secondary);
+		cursor: pointer;
+		padding: 6px 10px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 1.1em;
+		transition: all 0.15s;
+		flex-shrink: 0;
+	}
+
+	.dir-btn:hover {
+		border-color: var(--text-muted);
+		color: var(--text-primary);
+	}
+
+	.direction-info {
+		flex: 1;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		min-width: 0;
+		gap: 12px;
+	}
+
+	.direction-label {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		min-width: 0;
+	}
+
+	.direction-destination {
+		font-size: 1.1em;
+		font-weight: 600;
+		color: var(--text-primary);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.direction-counter {
+		font-size: 0.75em;
+		color: var(--text-muted);
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		flex-shrink: 0;
 	}
 
 	/* Featured card */
@@ -246,6 +358,14 @@
 		gap: 4px;
 	}
 
+	.featured-info-wide {
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		align-items: center;
+		gap: 10px;
+	}
+
 	.featured-destination {
 		font-size: 1.3em;
 		font-weight: 600;
@@ -275,7 +395,7 @@
 		letter-spacing: -0.01em;
 	}
 
-	/* Subsequent departures list */
+	/* Subsequent departures — same direction only */
 	.subsequent-list {
 		flex: 1;
 		overflow: hidden;
@@ -288,7 +408,7 @@
 		display: flex;
 		align-items: center;
 		gap: clamp(12px, 1.2vw, 20px);
-		height: clamp(64px, 7.5vh, 88px);
+		height: clamp(56px, 6.5vh, 76px);
 		padding: 0 clamp(12px, 1.2vw, 18px);
 		border-bottom: 1px solid var(--border-color);
 		flex-shrink: 0;
@@ -302,38 +422,27 @@
 		opacity: 0.5;
 	}
 
-	.sub-route {
+	/* Ordinal counter: 2, 3, 4… */
+	.sub-index {
 		flex-shrink: 0;
-		width: var(--col-route);
-		display: flex;
-		align-items: center;
-		justify-content: center;
+		width: 1.8em;
+		font-size: 0.82em;
+		font-weight: 700;
+		color: var(--text-muted);
+		text-align: right;
 	}
 
-	.sub-destination {
-		flex: 1;
-		min-width: 0;
-		font-size: 1.05em;
-		font-weight: 500;
-		color: var(--text-primary);
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
-
-	.sub-time {
+	.sub-time-block {
 		display: flex;
 		align-items: center;
-		gap: 8px;
-		flex-shrink: 0;
+		gap: 10px;
 	}
 
 	.sub-countdown {
-		font-size: 1.1em;
+		font-size: 1.15em;
 		font-weight: 700;
 		color: var(--text-primary);
-		min-width: 60px;
-		text-align: right;
+		min-width: 70px;
 	}
 
 	.cancelled-text {
@@ -381,13 +490,5 @@
 		font-size: 1.1em;
 		color: var(--color-alert);
 		margin-right: 8px;
-	}
-
-	.alert-icon-sm {
-		display: inline-block;
-		vertical-align: middle;
-		font-size: 0.95em;
-		color: var(--color-alert);
-		margin-right: 6px;
 	}
 </style>
