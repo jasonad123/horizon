@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Alert } from '$lib/services/nearby';
+	import 'iconify-icon';
 
 	export interface TickerAlert {
 		alert: Alert;
@@ -34,11 +35,7 @@
 
 {#if alerts.length > 0}
 	<div class="ticker" style="--sev-color: {severityColor}">
-		<svg class="sev-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-			<path d="M8 2L14.5 13H1.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-			<path d="M8 6.5v3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-			<circle cx="8" cy="11.75" r="0.85" fill="currentColor"/>
-		</svg>
+		<iconify-icon class="sev-icon" icon="tabler:alert-triangle" aria-hidden="true"></iconify-icon>
 
 		<div class="scroll-wrap">
 			{#key tickerText}
@@ -55,7 +52,7 @@
 <style>
 	.ticker {
 		flex-shrink: 0;
-		height: clamp(52px, 5.5vh, 70px);
+		height: clamp(64px, 7vh, 88px);
 		background: color-mix(in srgb, var(--sev-color) 10%, var(--bg-primary));
 		border-top: 1px solid color-mix(in srgb, var(--sev-color) 35%, transparent);
 		display: flex;
@@ -66,10 +63,10 @@
 	}
 
 	.sev-icon {
-		width: clamp(18px, 1.6vw, 26px);
-		height: clamp(18px, 1.6vw, 26px);
+		font-size: clamp(24px, 2.2vw, 34px);
 		color: var(--sev-color);
 		flex-shrink: 0;
+		display: block;
 	}
 
 	.scroll-wrap {
@@ -81,7 +78,7 @@
 	.scroll-text {
 		display: inline-block;
 		white-space: nowrap;
-		font-size: clamp(0.88em, 1vw, 1em);
+		font-size: clamp(1em, 1.2vw, 1.15em);
 		font-weight: 500;
 		color: var(--text-secondary);
 		/* padding-left pushes text fully off-screen right to start;

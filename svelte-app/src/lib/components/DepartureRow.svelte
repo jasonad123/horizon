@@ -1,5 +1,6 @@
 <script lang="ts">
 	import RouteIcon from './RouteIcon.svelte';
+	import 'iconify-icon';
 	import { formatCountdown } from '$lib/utils/timeUtils';
 	import { shouldShowDeparture } from '$lib/utils/departureFilters';
 	import { config } from '$lib/stores/config';
@@ -68,6 +69,17 @@
 
 	let hasAlert = $derived((route.alerts?.length ?? 0) > 0);
 	let isAlt = $derived(groupIndex % 2 !== 0);
+
+	const RT_ICONS = ['tabler:wifi-0', 'tabler:wifi-1', 'tabler:wifi-2', 'tabler:wifi'];
+	let rtIconIndex = $state(0);
+
+	$effect(() => {
+		if (!currentItem?.is_real_time) return;
+		const id = setInterval(() => { rtIconIndex = (rtIconIndex + 1) % RT_ICONS.length; }, 800);
+		return () => clearInterval(id);
+	});
+
+	let rtIcon = $derived(RT_ICONS[rtIconIndex]);
 </script>
 
 {#if currentItem}
@@ -79,11 +91,7 @@
 		</td>
 		<td class="col-destination" class:cancelled-text={currentItem.is_cancelled}>
 			{#if hasAlert}
-				<svg class="alert-icon" viewBox="0 0 16 16" fill="none" aria-label="Service alert">
-					<path d="M8 2L14.5 13H1.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
-					<path d="M8 6.5v3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-					<circle cx="8" cy="11.75" r="0.75" fill="currentColor"/>
-				</svg>
+				<iconify-icon class="alert-icon" icon="tabler:alert-triangle" aria-label="Service alert"></iconify-icon>
 			{/if}
 			{#if !showBadge}<span class="direction-indent"></span>{/if}
 			{destination}
@@ -98,18 +106,9 @@
 				</span>
 				{#if !currentItem.is_cancelled}
 					{#if currentItem.is_real_time}
-						<svg class="status-icon rt" viewBox="0 0 16 16" fill="none" aria-label="Real time">
-							<title>Real time</title>
-							<circle cx="8" cy="11.5" r="2" fill="currentColor"/>
-							<path d="M4.5 7.5a5 5 0 0 1 7 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-							<path d="M1.5 4.5a9.5 9.5 0 0 1 13 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-						</svg>
+						<iconify-icon class="status-icon rt" icon={rtIcon} aria-label="Real time"></iconify-icon>
 					{:else}
-						<svg class="status-icon sch" viewBox="0 0 16 16" fill="none" aria-label="Scheduled">
-							<title>Scheduled</title>
-							<circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/>
-							<path d="M8 4.5V8l2.5 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-						</svg>
+						<iconify-icon class="status-icon sch" icon="tabler:clock" aria-label="Scheduled"></iconify-icon>
 					{/if}
 				{/if}
 			</div>
@@ -199,13 +198,14 @@
 
 	/* Status icons */
 	.status-icon {
-		width: clamp(16px, 1.4vw, 22px);
-		height: clamp(16px, 1.4vw, 22px);
+		font-size: clamp(22px, 2vw, 32px);
 		flex-shrink: 0;
+		display: block;
 	}
 
 	.status-icon.rt {
 		color: var(--color-realtime);
+		transform: rotate(45deg);
 	}
 
 	.status-icon.sch {
@@ -213,12 +213,11 @@
 		opacity: 0.7;
 	}
 
-	/* Alert icon — inline before destination text */
+	/* Alert icon — inline before destination text, sized to match destination text */
 	.alert-icon {
 		display: inline-block;
 		vertical-align: middle;
-		width: clamp(17px, 1.5vw, 24px);
-		height: clamp(17px, 1.5vw, 24px);
+		font-size: 1.1em;
 		color: var(--color-alert);
 		margin-right: 8px;
 	}

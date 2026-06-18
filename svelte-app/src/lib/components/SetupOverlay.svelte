@@ -6,6 +6,7 @@
 	import { findNearbyStops, type Stop } from '$lib/services/stops';
 	import RouteIcon from './RouteIcon.svelte';
 	import LocationPicker from './LocationPicker.svelte';
+	import 'iconify-icon';
 
 	let {
 		oncomplete,
@@ -183,9 +184,7 @@
 				<p class="step-desc">Set the physical location of this display.</p>
 
 				<button class="geo-btn" onclick={useMyLocation} disabled={geoLoading}>
-					<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-						<path d="M8 10.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5m.5-9a.5.5 0 0 0-1 0v1.525A5 5 0 0 0 3.025 7.5H1.5a.5.5 0 0 0 0 1h1.525A5 5 0 0 0 7.5 12.976V14.5a.5.5 0 0 0 1 0v-1.524A5 5 0 0 0 12.975 8.5H14.5a.5.5 0 1 0 0-1h-1.525A5 5 0 0 0 8.5 3.025z"/>
-					</svg>
+					<iconify-icon icon="tabler:current-location" aria-hidden="true"></iconify-icon>
 					{geoLoading ? 'Locating...' : 'Use device location'}
 				</button>
 
@@ -524,10 +523,10 @@
 		cursor: not-allowed;
 	}
 
-	.geo-btn svg {
-		width: 18px;
-		height: 18px;
+	.geo-btn iconify-icon {
+		font-size: 18px;
 		flex-shrink: 0;
+		display: block;
 	}
 
 	.field-error {
