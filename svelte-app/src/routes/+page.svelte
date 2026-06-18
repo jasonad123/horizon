@@ -12,7 +12,8 @@
 		return () => clearInterval(id);
 	});
 
-	let clockString = $derived(formatClock(now, 'HH:mm:ss'));
+	let clockFormat = $derived($config.timeFormat === 'hh:mm A' ? 'hh:mm A' : 'HH:mm:ss');
+	let clockString = $derived(formatClock(now, clockFormat));
 
 	// Show setup when nothing is configured yet
 	let needsSetup = $derived(
