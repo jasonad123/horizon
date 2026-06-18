@@ -94,15 +94,12 @@
 		class:group-start={isGroupStart}
 	>
 		<td class="col-route">
-			{#if showBadge}
-				<RouteIcon {route} useIcons={$config.useRouteIcons} />
-			{/if}
+			<RouteIcon {route} useIcons={$config.useRouteIcons} />
 		</td>
 		<td class="col-destination" class:cancelled-text={currentItem.is_cancelled}>
 			{#if hasAlert}
 				<iconify-icon class="alert-icon" icon="tabler:alert-triangle" aria-label="Service alert"></iconify-icon>
 			{/if}
-			{#if !showBadge}<span class="direction-indent"></span>{/if}
 			{destination}
 		</td>
 		{#if !hidePlatformCol}
@@ -174,17 +171,7 @@
 		text-overflow: ellipsis;
 	}
 
-	.direction-indent {
-		display: inline-block;
-		vertical-align: middle;
-		width: 3px;
-		height: 1.1em;
-		background: rgba(255, 255, 255, 0.15);
-		border-radius: 1px;
-		margin-right: 10px;
-	}
-
-	.col-stop {
+.col-stop {
 		width: var(--col-stop);
 		font-size: 0.88em;
 		color: var(--text-secondary);

@@ -17,11 +17,11 @@
 	let clockString = $derived(formatClock(now, clockFormat));
 
 	const HEADER_ICONS: Record<string, string> = {
-		train: 'tabler:train',
-		bus: 'tabler:bus',
-		metro: 'tabler:directions-subway',
-		tram: 'tabler:tram',
-		ferry: 'tabler:sailboat'
+		train: 'bxs:train',
+		bus: 'mdi:bus',
+		metro: 'mdi:subway-variant',
+		tram: 'mdi:tram',
+		ferry: 'mdi:ferry'
 	};
 	let headerIconName = $derived($config.headerIcon !== 'none' ? HEADER_ICONS[$config.headerIcon] ?? null : null);
 
