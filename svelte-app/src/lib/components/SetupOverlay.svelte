@@ -425,7 +425,7 @@
 					<fieldset class="field field-radio">
 						<legend>Header icon</legend>
 						<div class="icon-grid">
-							{#each ([['none','—','None'],['train','tabler:train','Train'],['bus','tabler:bus','Bus'],['metro','tabler:directions-subway','Metro'],['tram','tabler:tram','Tram'],['ferry','tabler:sailboat','Ferry']] as const) as [val, icon, label]}
+							{#each ([['none','—','None'],['train','bxs:train','Train'],['bus','mdi:bus','Bus'],['metro','mdi:subway-variant','Metro'],['tram','mdi:tram','Tram'],['ferry','mdi:ferry','Ferry']] as const) as [val, icon, label]}
 								<button
 									type="button"
 									class="icon-btn"
