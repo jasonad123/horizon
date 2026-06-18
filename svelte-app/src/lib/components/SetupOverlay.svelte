@@ -74,6 +74,7 @@
 	let nearbyStops = $state<Stop[]>([]);
 	let pickerLoading = $state(false);
 	let pickerError = $state('');
+	let pickerLoadedCoords = $state('');
 
 	async function loadRoutes() {
 		if (nearbyRoutes.length > 0 || pickerLoading) return;
@@ -127,6 +128,12 @@
 
 	// ── Navigation ───────────────────────────────────────────────────
 	function goStep2() {
+		const coordKey = draftCoords.trim();
+		if (coordKey !== pickerLoadedCoords) {
+			nearbyRoutes = [];
+			nearbyStops = [];
+			pickerLoadedCoords = coordKey;
+		}
 		step = 2;
 		if (filterMode === 'routes') loadRoutes();
 		if (filterMode === 'stops') loadStops();
@@ -203,6 +210,16 @@
 				</label>
 
 				<LocationPicker lat={mapLat} lon={mapLon} onchange={onMapChange} />
+
+				<div class="credits">
+					<p class="credits-text">
+						Real-time and schedule data provided by the
+						<a href="https://transitapp.com/partners/apis" target="_blank" rel="noopener noreferrer">Transit API</a>.
+					</p>
+					<a href="https://transitapp.com/partners/apis" target="_blank" rel="noopener noreferrer" class="credits-badge-link">
+						<img src="/assets/api-badge.svg" alt="Powered by Transit" class="credits-badge" />
+					</a>
+				</div>
 			</div>
 		{/if}
 
@@ -540,6 +557,46 @@
 		font-size: 0.85em;
 		color: var(--color-cancelled);
 		margin: -16px 0 20px;
+	}
+
+	/* ── Credits ────────────────────────────────────────────────── */
+	.credits {
+		margin-top: 28px;
+		padding-top: 20px;
+		border-top: 1px solid var(--border-color);
+	}
+
+	.credits-text {
+		font-size: 0.82em;
+		color: var(--text-muted);
+		margin-bottom: 12px;
+		line-height: 1.5;
+	}
+
+	.credits-text a {
+		color: var(--text-secondary);
+		text-decoration: none;
+	}
+
+	.credits-text a:hover {
+		color: var(--text-primary);
+		text-decoration: underline;
+	}
+
+	.credits-badge-link {
+		display: inline-block;
+	}
+
+	.credits-badge {
+		height: 36px;
+		width: auto;
+		display: block;
+		opacity: 0.85;
+		transition: opacity 0.15s;
+	}
+
+	.credits-badge-link:hover .credits-badge {
+		opacity: 1;
 	}
 
 	/* ── Step 2: mode buttons ───────────────────────────────────── */
