@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { Route } from '$lib/services/nearby';
 
-	let { route }: { route: Route } = $props();
+	let { route, useIcons = true }: { route: Route; useIcons?: boolean } = $props();
 
 	// Logos that contain their own internal colors and must not be recolored
 	const COMPLEX_LOGOS = new Set(['ccjpaca-logo']);
@@ -64,7 +64,7 @@
 	);
 </script>
 
-{#if iconName && !iconError}
+{#if useIcons && iconName && !iconError}
 	<span class="icon-wrapper">
 		<!-- Show badge colour while image loads so the column doesn't flash empty -->
 		{#if !iconLoaded}

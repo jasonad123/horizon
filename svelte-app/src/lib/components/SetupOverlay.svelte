@@ -107,6 +107,7 @@
 	let draftTitle = $state('Horizon');
 	let draftTimeFormat = $state<'HH:mm' | 'hh:mm A'>('HH:mm');
 	let draftMaxDepartures = $state(8);
+	let draftUseRouteIcons = $state(true);
 
 	// ── Navigation ───────────────────────────────────────────────────
 	function goStep2() {
@@ -125,7 +126,8 @@
 			selectedStopIds: filterMode === 'stops' ? [...selectedStopIds] : [],
 			selectedRouteIds: filterMode === 'routes' ? [...selectedRouteIds] : [],
 			timeFormat: draftTimeFormat,
-			maxDepartures: Math.max(1, Math.min(30, draftMaxDepartures))
+			maxDepartures: Math.max(1, Math.min(30, draftMaxDepartures)),
+			useRouteIcons: draftUseRouteIcons
 		});
 		oncomplete();
 	}
@@ -334,6 +336,18 @@
 						<span>Max rows</span>
 						<input type="number" min="1" max="30" bind:value={draftMaxDepartures} />
 					</label>
+
+					<fieldset class="field field-radio">
+						<legend>Route badge style</legend>
+						<label class="radio-option">
+							<input type="radio" name="icons" value={true} bind:group={draftUseRouteIcons} />
+							Icons when available
+						</label>
+						<label class="radio-option">
+							<input type="radio" name="icons" value={false} bind:group={draftUseRouteIcons} />
+							Text only
+						</label>
+					</fieldset>
 				</div>
 			</div>
 		{/if}

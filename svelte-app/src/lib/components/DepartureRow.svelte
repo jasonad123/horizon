@@ -2,6 +2,7 @@
 	import RouteIcon from './RouteIcon.svelte';
 	import { formatCountdown } from '$lib/utils/timeUtils';
 	import { shouldShowDeparture } from '$lib/utils/departureFilters';
+	import { config } from '$lib/stores/config';
 	import type { Route, Itinerary, ScheduleItem } from '$lib/services/nearby';
 
 	let {
@@ -35,20 +36,30 @@
 		const stop = itinerary.closest_stop;
 		if (!stop) return '';
 
-		const code = stop.stop_code;
-		if (code) {
-			// Some agencies populate stop_code with their internal GTFS stop_id — a long
-			// pure-numeric string that has no meaning to passengers (e.g. "1001229").
-			// Meaningful codes are short: bay numbers ("4"), platform letters ("A"),
-			// or short stop references ("51752"). Treat 7+ digit strings as raw IDs.
-			if (!/^\d{7,}$/.test(code)) return code;
+		const rawCode = stop.stop_code ?? '';
+		// 7+ digit pure-numeric strings are internal GTFS stop_ids, not passenger labels
+		const code = rawCode && !/^\d{7,}$/.test(rawCode) ? rawCode : null;
+
+		if (stop.parent_station) {
+			// Stop is part of a larger station (terminal, interchange, etc.).
+			// Prefer the stop-specific identifier; fall back to the parent station name.
+			if (code) return code;
+
+			// Strip the parent station name prefix from stop_name to get the sub-identifier.
+			// e.g. stop_name "Union Station - Gate A", station_name "Union Station" → "Gate A"
+			const stationName = stop.parent_station.station_name ?? '';
+			const stopName = stop.stop_name ?? '';
+			if (stationName && stopName.startsWith(stationName)) {
+				const sub = stopName.slice(stationName.length).replace(/^[\s\-–/]+/, '').trim();
+				if (sub) return sub;
+			}
+
+			// Nothing more specific — show the parent station name itself
+			return stationName || stopName;
 		}
 
-		// Fall back to the trailing segment of stop_name after the last " - "
-		// (e.g. "Central Terminal - Bay 4" → "Bay 4"). CSS handles truncation.
-		const name = stop.stop_name || '';
-		const sep = name.lastIndexOf(' - ');
-		return sep > -1 ? name.slice(sep + 3) : name;
+		// No parent station: show stop_code or full stop_name, let CSS clip if needed
+		return code ?? stop.stop_name ?? '';
 	});
 
 	let destination = $derived(
@@ -63,7 +74,7 @@
 	<tr class="departure-row" class:alt={isAlt} class:is-cancelled={currentItem.is_cancelled}>
 		<td class="col-route">
 			{#if showBadge}
-				<RouteIcon {route} />
+				<RouteIcon {route} useIcons={$config.useRouteIcons} />
 			{/if}
 		</td>
 		<td class="col-destination" class:cancelled-text={currentItem.is_cancelled}>

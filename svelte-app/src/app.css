@@ -16,7 +16,7 @@
 	--header-height: clamp(72px, 7.5vh, 100px);
 	--row-height: clamp(80px, 9vh, 112px);
 	--col-route: clamp(80px, 5.5vw, 100px);
-	--col-stop: clamp(130px, 11vw, 180px);
+	--col-stop: clamp(160px, 20vw, 280px);
 	--col-time: clamp(140px, 12vw, 200px);
 }
 

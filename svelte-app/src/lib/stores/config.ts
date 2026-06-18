@@ -17,6 +17,7 @@ export interface HorizonConfig {
 	selectedRouteIds: string[];
 	timeFormat: 'HH:mm' | 'hh:mm A';
 	maxDepartures: number;
+	useRouteIcons: boolean;
 	loaded: boolean;
 }
 
@@ -29,6 +30,7 @@ const defaultConfig: HorizonConfig = {
 	selectedRouteIds: [],
 	timeFormat: 'HH:mm',
 	maxDepartures: 8,
+	useRouteIcons: true,
 	loaded: false
 };
 
@@ -67,6 +69,7 @@ function createConfigStore() {
 						selectedRouteIds: Array.isArray(parsed.selectedRouteIds) ? parsed.selectedRouteIds : [],
 						timeFormat: parsed.timeFormat === 'hh:mm A' ? 'hh:mm A' : 'HH:mm',
 						maxDepartures: parsed.maxDepartures || 8,
+						useRouteIcons: parsed.useRouteIcons !== false,
 						loaded: true
 					});
 					return;
@@ -95,6 +98,7 @@ function createConfigStore() {
 					selectedRouteIds: [],
 					timeFormat: data.timeFormat === 'hh:mm A' ? 'hh:mm A' : 'HH:mm',
 					maxDepartures: data.maxDepartures || 8,
+					useRouteIcons: true,
 					loaded: true
 				});
 			} catch {
