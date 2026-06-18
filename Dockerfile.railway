@@ -17,7 +17,7 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 
 # Copy dependency files first for better layer caching
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY svelte-app/package.json svelte-app/pnpm-lock.yaml svelte-app/pnpm-workspace.yaml ./svelte-app/
+COPY svelte-app/package.json ./svelte-app/
 
 # Install root dependencies
 RUN pnpm install --frozen-lockfile
@@ -59,7 +59,6 @@ RUN pnpm install --prod --frozen-lockfile
 # Environment configuration
 ENV NODE_ENV=production
 ENV PORT=8080
-ENV USE_SVELTE=true
 
 EXPOSE 8080
 
