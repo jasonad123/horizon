@@ -3,6 +3,8 @@ import { browser } from '$app/environment';
 
 export type FilterMode = 'all' | 'routes' | 'stops';
 export type DisplayMode = 'station' | 'platform';
+export type HeaderIcon = 'none' | 'train' | 'bus' | 'metro' | 'tram' | 'ferry';
+export type RowStyle = 'alternating' | 'card' | 'lean';
 
 export interface LatLng {
 	latitude: number;
@@ -21,6 +23,8 @@ export interface HorizonConfig {
 	useRouteIcons: boolean;
 	monoMode: boolean;
 	displayMode: DisplayMode;
+	headerIcon: HeaderIcon;
+	rowStyle: RowStyle;
 	loaded: boolean;
 }
 
@@ -36,6 +40,8 @@ const defaultConfig: HorizonConfig = {
 	useRouteIcons: true,
 	monoMode: false,
 	displayMode: 'station',
+	headerIcon: 'none',
+	rowStyle: 'alternating',
 	loaded: false
 };
 
@@ -77,6 +83,8 @@ function createConfigStore() {
 						useRouteIcons: parsed.useRouteIcons !== false,
 						monoMode: parsed.monoMode === true,
 						displayMode: parsed.displayMode === 'platform' ? 'platform' : 'station',
+						headerIcon: (['train','bus','metro','tram','ferry'] as HeaderIcon[]).includes(parsed.headerIcon as HeaderIcon) ? parsed.headerIcon as HeaderIcon : 'none',
+						rowStyle: (['alternating','card','lean'] as RowStyle[]).includes(parsed.rowStyle as RowStyle) ? parsed.rowStyle as RowStyle : 'alternating',
 						loaded: true
 					});
 					return;
@@ -108,6 +116,8 @@ function createConfigStore() {
 					useRouteIcons: true,
 					monoMode: false,
 					displayMode: 'station',
+					headerIcon: 'none',
+					rowStyle: 'alternating',
 					loaded: true
 				});
 			} catch {
