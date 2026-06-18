@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import { SvelteSet } from 'svelte/reactivity';
-	import { config, type FilterMode, type DisplayMode } from '$lib/stores/config';
+	import { config, type FilterMode, type DisplayMode, type HeaderIcon, type RowStyle } from '$lib/stores/config';
 	import { findNearbyRoutes, type Route } from '$lib/services/nearby';
 	import { findNearbyStops, type Stop } from '$lib/services/stops';
 	import RouteIcon from './RouteIcon.svelte';
@@ -126,6 +126,8 @@
 	let draftUseRouteIcons = $state($config.useRouteIcons !== false);
 	let draftMonoMode = $state($config.monoMode === true);
 	let draftDisplayMode = $state<DisplayMode>($config.displayMode ?? 'station');
+	let draftHeaderIcon = $state<HeaderIcon>($config.headerIcon ?? 'none');
+	let draftRowStyle = $state<RowStyle>($config.rowStyle ?? 'alternating');
 
 	// ── Navigation ───────────────────────────────────────────────────
 	function goStep2() {
@@ -157,7 +159,9 @@
 			maxDepartures: Math.max(1, Math.min(30, draftMaxDepartures)),
 			useRouteIcons: draftUseRouteIcons,
 			monoMode: draftMonoMode,
-			displayMode: draftDisplayMode
+			displayMode: draftDisplayMode,
+			headerIcon: draftHeaderIcon,
+			rowStyle: draftRowStyle
 		});
 		oncomplete();
 	}
@@ -414,6 +418,60 @@
 							>
 								<span class="display-mode-label">Platform</span>
 								<span class="display-mode-sub">Featured next departure, no bay column</span>
+							</button>
+						</div>
+					</fieldset>
+
+					<fieldset class="field field-radio">
+						<legend>Header icon</legend>
+						<div class="icon-grid">
+							{#each ([['none','—','None'],['train','tabler:train','Train'],['bus','tabler:bus','Bus'],['metro','tabler:directions-subway','Metro'],['tram','tabler:tram','Tram'],['ferry','tabler:sailboat','Ferry']] as const) as [val, icon, label]}
+								<button
+									type="button"
+									class="icon-btn"
+									class:active={draftHeaderIcon === val}
+									onclick={() => (draftHeaderIcon = val)}
+									title={label}
+								>
+									{#if val === 'none'}
+										<span class="icon-btn-label">None</span>
+									{:else}
+										<iconify-icon {icon} aria-hidden="true"></iconify-icon>
+									{/if}
+								</button>
+							{/each}
+						</div>
+					</fieldset>
+
+					<fieldset class="field field-radio">
+						<legend>Row style</legend>
+						<div class="display-mode-buttons">
+							<button
+								type="button"
+								class="display-mode-btn"
+								class:active={draftRowStyle === 'alternating'}
+								onclick={() => (draftRowStyle = 'alternating')}
+							>
+								<span class="display-mode-label">Alternating</span>
+								<span class="display-mode-sub">Shaded every other route group</span>
+							</button>
+							<button
+								type="button"
+								class="display-mode-btn"
+								class:active={draftRowStyle === 'card'}
+								onclick={() => (draftRowStyle = 'card')}
+							>
+								<span class="display-mode-label">Card</span>
+								<span class="display-mode-sub">Uniform fill on every row</span>
+							</button>
+							<button
+								type="button"
+								class="display-mode-btn"
+								class:active={draftRowStyle === 'lean'}
+								onclick={() => (draftRowStyle = 'lean')}
+							>
+								<span class="display-mode-label">Lean</span>
+								<span class="display-mode-sub">No row fill, dividers only</span>
 							</button>
 						</div>
 					</fieldset>
@@ -978,5 +1036,47 @@
 
 	.display-mode-btn.active .display-mode-sub {
 		color: var(--text-secondary);
+	}
+
+	/* ── Header icon grid ───────────────────────────────────────── */
+	.icon-grid {
+		display: flex;
+		gap: 10px;
+		flex-wrap: wrap;
+	}
+
+	.icon-btn {
+		width: 52px;
+		height: 52px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: rgba(255, 255, 255, 0.03);
+		border: 1px solid var(--border-color);
+		border-radius: 7px;
+		color: var(--text-secondary);
+		font-size: 1.4em;
+		cursor: pointer;
+		transition: all 0.15s;
+		font-family: inherit;
+	}
+
+	.icon-btn:hover {
+		border-color: var(--text-muted);
+		color: var(--text-primary);
+	}
+
+	.icon-btn.active {
+		border-color: var(--color-accent);
+		border-width: 2px;
+		background: rgba(58, 123, 213, 0.12);
+		color: var(--color-accent);
+	}
+
+	.icon-btn-label {
+		font-size: 0.6em;
+		font-weight: 700;
+		letter-spacing: 0.04em;
+		color: inherit;
 	}
 </style>

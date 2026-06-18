@@ -1,7 +1,7 @@
 <script lang="ts">
 	import RouteIcon from './RouteIcon.svelte';
 	import 'iconify-icon';
-	import { formatCountdown } from '$lib/utils/timeUtils';
+	import { formatDepartureTime } from '$lib/utils/timeUtils';
 	import { shouldShowDeparture } from '$lib/utils/departureFilters';
 	import { config } from '$lib/stores/config';
 	import type { Route, Itinerary, ScheduleItem } from '$lib/services/nearby';
@@ -33,7 +33,7 @@
 			.sort((a, b) => a.departure_time - b.departure_time)[0]
 	);
 
-	let countdown = $derived(currentItem ? formatCountdown(currentItem.departure_time, now) : '');
+	let countdown = $derived(currentItem ? formatDepartureTime(currentItem.departure_time, now, $config.timeFormat) : '');
 
 	let stopLabel = $derived.by(() => {
 		const stop = itinerary.closest_stop;
@@ -72,6 +72,7 @@
 	let hasAlert = $derived((route.alerts?.length ?? 0) > 0);
 	let isAlt = $derived(groupIndex % 2 !== 0);
 	let isGroupStart = $derived(showBadge && groupIndex > 0);
+	let rowStyle = $derived($config.rowStyle ?? 'alternating');
 
 	const RT_ICONS = ['tabler:wifi-0', 'tabler:wifi-1', 'tabler:wifi-2', 'tabler:wifi'];
 	let rtIconIndex = $state(0);
@@ -86,7 +87,12 @@
 </script>
 
 {#if currentItem}
-	<tr class="departure-row" class:alt={isAlt} class:is-cancelled={currentItem.is_cancelled} class:group-start={isGroupStart}>
+	<tr class="departure-row"
+		class:alt={rowStyle === 'alternating' && isAlt}
+		class:card={rowStyle === 'card'}
+		class:is-cancelled={currentItem.is_cancelled}
+		class:group-start={isGroupStart}
+	>
 		<td class="col-route">
 			{#if showBadge}
 				<RouteIcon {route} useIcons={$config.useRouteIcons} />
@@ -130,6 +136,11 @@
 	/* Alternate shading per route group, not per individual row */
 	.departure-row.alt {
 		background: var(--bg-row-alt);
+	}
+
+	/* Card style — uniform fill on every row */
+	.departure-row.card {
+		background: var(--bg-row-card);
 	}
 
 	/* Visible separator between route groups (skipped for the first group) */

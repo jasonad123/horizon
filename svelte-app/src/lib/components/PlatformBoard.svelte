@@ -2,7 +2,7 @@
 	import RouteIcon from './RouteIcon.svelte';
 	import AlertTicker from './AlertTicker.svelte';
 	import 'iconify-icon';
-	import { formatCountdown } from '$lib/utils/timeUtils';
+	import { formatCountdown, formatDepartureTime } from '$lib/utils/timeUtils';
 	import { shouldShowDeparture } from '$lib/utils/departureFilters';
 	import { config } from '$lib/stores/config';
 	import type { DirectionEntry } from '$lib/utils/displayTypes';
@@ -84,7 +84,7 @@
 	let activeItems = $derived(visibleItems(active));
 	let featuredItem = $derived(activeItems[0]);
 	let subsequentItems = $derived(activeItems.slice(1));
-	let featuredCountdown = $derived(featuredItem ? formatCountdown(featuredItem.departure_time, now) : '');
+	let featuredCountdown = $derived(featuredItem ? formatDepartureTime(featuredItem.departure_time, now, $config.timeFormat) : '');
 	let featuredStopLabel = $derived(active ? stopLabelFor(active) : '');
 	let featuredDestination = $derived(active ? destinationFor(active) : '');
 	let featuredHasAlert = $derived((active?.route.alerts?.length ?? 0) > 0);
@@ -191,11 +191,15 @@
 			{#if subsequentItems.length > 0}
 				<div class="subsequent-list">
 					{#each subsequentItems as item, i (item.departure_time)}
-						<div class="sub-row" class:alt={i % 2 !== 0} class:is-cancelled={item.is_cancelled}>
+						<div class="sub-row"
+							class:alt={($config.rowStyle ?? 'alternating') === 'alternating' && i % 2 !== 0}
+							class:card={($config.rowStyle ?? 'alternating') === 'card'}
+							class:is-cancelled={item.is_cancelled}
+						>
 							<div class="sub-index">{i + 2}</div>
 							<div class="sub-time-block">
 								<span class="sub-countdown" class:cancelled-text={item.is_cancelled}>
-									{item.is_cancelled ? 'Cancelled' : formatCountdown(item.departure_time, now)}
+									{item.is_cancelled ? 'Cancelled' : formatDepartureTime(item.departure_time, now, $config.timeFormat)}
 								</span>
 								{#if !item.is_cancelled}
 									{#if item.is_real_time}
@@ -416,6 +420,10 @@
 
 	.sub-row.alt {
 		background: var(--bg-row-alt);
+	}
+
+	.sub-row.card {
+		background: var(--bg-row-card);
 	}
 
 	.sub-row.is-cancelled {
