@@ -1,0 +1,24 @@
+# Render Blueprint for Horizon - use this to jumpstart an instance on Render
+services:
+  - type: web
+    name: Horizon
+    runtime: image
+    image:
+      url: ghcr.io/jasonad123/horizon:latest
+    envVars:
+      - key: TRANSIT_API_KEY
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: ENABLE_SERVER_CACHE
+        sync: false
+      - key: PORT
+        value: 8080
+      - key: NODE_ENV
+        value: production
+      - key: UNATTENDED_SETUP
+        sync: false
+      - key: UNATTENDED_TITLE
+        sync: false
+      - key: UNATTENDED_LOCATION
+        sync: false
