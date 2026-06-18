@@ -14,10 +14,13 @@
 	--color-accent: #3a7bd5;
 	/* Fluid sizing: scales from ~720p laptops up to 1080p/4K TVs */
 	--header-height: clamp(72px, 7.5vh, 100px);
-	--row-height: clamp(80px, 9vh, 112px);
+	--row-height: clamp(88px, 9vh, 112px);
+	--row-padding-v: clamp(10px, 1.1vh, 16px);
+	--row-padding-h: clamp(14px, 1.2vw, 20px);
 	--col-route: clamp(80px, 5.5vw, 100px);
 	--col-stop: clamp(160px, 20vw, 280px);
 	--col-time: clamp(140px, 12vw, 200px);
+	--border-group-sep: rgba(255, 255, 255, 0.10);
 }
 
 *,

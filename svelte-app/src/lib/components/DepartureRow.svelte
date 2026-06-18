@@ -10,12 +10,14 @@
 		route,
 		itinerary,
 		showBadge = true,
-		groupIndex = 0
+		groupIndex = 0,
+		hidePlatformCol = false
 	}: {
 		route: Route;
 		itinerary: Itinerary;
 		showBadge?: boolean;
 		groupIndex?: number;
+		hidePlatformCol?: boolean;
 	} = $props();
 
 	let now = $state(Date.now());
@@ -69,6 +71,7 @@
 
 	let hasAlert = $derived((route.alerts?.length ?? 0) > 0);
 	let isAlt = $derived(groupIndex % 2 !== 0);
+	let isGroupStart = $derived(showBadge && groupIndex > 0);
 
 	const RT_ICONS = ['tabler:wifi-0', 'tabler:wifi-1', 'tabler:wifi-2', 'tabler:wifi'];
 	let rtIconIndex = $state(0);
@@ -83,7 +86,7 @@
 </script>
 
 {#if currentItem}
-	<tr class="departure-row" class:alt={isAlt} class:is-cancelled={currentItem.is_cancelled}>
+	<tr class="departure-row" class:alt={isAlt} class:is-cancelled={currentItem.is_cancelled} class:group-start={isGroupStart}>
 		<td class="col-route">
 			{#if showBadge}
 				<RouteIcon {route} useIcons={$config.useRouteIcons} />
@@ -96,9 +99,11 @@
 			{#if !showBadge}<span class="direction-indent"></span>{/if}
 			{destination}
 		</td>
-		<td class="col-stop">
-			{stopLabel}
-		</td>
+		{#if !hidePlatformCol}
+			<td class="col-stop">
+				{stopLabel}
+			</td>
+		{/if}
 		<td class="col-time">
 			<div class="time-inner">
 				<span class="countdown" class:cancelled-text={currentItem.is_cancelled}>
@@ -127,12 +132,17 @@
 		background: var(--bg-row-alt);
 	}
 
-.departure-row.is-cancelled {
+	/* Visible separator between route groups (skipped for the first group) */
+	.departure-row.group-start {
+		border-top: 2px solid var(--border-group-sep);
+	}
+
+	.departure-row.is-cancelled {
 		opacity: 0.5;
 	}
 
 	td {
-		padding: 0 14px;
+		padding: var(--row-padding-v) var(--row-padding-h);
 		vertical-align: middle;
 		white-space: nowrap;
 		overflow: hidden;
@@ -140,7 +150,7 @@
 
 	.col-route {
 		width: var(--col-route);
-		padding: 0 10px;
+		padding: var(--row-padding-v) 10px;
 		text-align: center;
 	}
 
@@ -156,9 +166,9 @@
 	.direction-indent {
 		display: inline-block;
 		vertical-align: middle;
-		width: 2px;
+		width: 3px;
 		height: 1.1em;
-		background: var(--border-color);
+		background: rgba(255, 255, 255, 0.15);
 		border-radius: 1px;
 		margin-right: 10px;
 	}
