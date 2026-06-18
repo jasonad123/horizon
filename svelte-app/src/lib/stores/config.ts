@@ -2,6 +2,7 @@ import { writable } from 'svelte/store';
 import { browser } from '$app/environment';
 
 export type FilterMode = 'all' | 'routes' | 'stops';
+export type DisplayMode = 'station' | 'platform';
 
 export interface LatLng {
 	latitude: number;
@@ -19,6 +20,7 @@ export interface HorizonConfig {
 	maxDepartures: number;
 	useRouteIcons: boolean;
 	monoMode: boolean;
+	displayMode: DisplayMode;
 	loaded: boolean;
 }
 
@@ -33,6 +35,7 @@ const defaultConfig: HorizonConfig = {
 	maxDepartures: 8,
 	useRouteIcons: true,
 	monoMode: false,
+	displayMode: 'station',
 	loaded: false
 };
 
@@ -73,6 +76,7 @@ function createConfigStore() {
 						maxDepartures: parsed.maxDepartures || 8,
 						useRouteIcons: parsed.useRouteIcons !== false,
 						monoMode: parsed.monoMode === true,
+						displayMode: parsed.displayMode === 'platform' ? 'platform' : 'station',
 						loaded: true
 					});
 					return;
@@ -103,6 +107,7 @@ function createConfigStore() {
 					maxDepartures: data.maxDepartures || 8,
 					useRouteIcons: true,
 					monoMode: false,
+					displayMode: 'station',
 					loaded: true
 				});
 			} catch {
