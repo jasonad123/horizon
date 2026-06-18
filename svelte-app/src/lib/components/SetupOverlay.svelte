@@ -123,6 +123,7 @@
 	let draftTimeFormat = $state<'HH:mm' | 'hh:mm A'>($config.timeFormat ?? 'HH:mm');
 	let draftMaxDepartures = $state($config.maxDepartures ?? 8);
 	let draftUseRouteIcons = $state($config.useRouteIcons !== false);
+	let draftMonoMode = $state($config.monoMode === true);
 
 	// ── Navigation ───────────────────────────────────────────────────
 	function goStep2() {
@@ -146,7 +147,8 @@
 			selectedRouteIds: filterMode === 'routes' ? [...selectedRouteIds] : [],
 			timeFormat: draftTimeFormat,
 			maxDepartures: Math.max(1, Math.min(30, draftMaxDepartures)),
-			useRouteIcons: draftUseRouteIcons
+			useRouteIcons: draftUseRouteIcons,
+			monoMode: draftMonoMode
 		});
 		oncomplete();
 	}
@@ -367,6 +369,11 @@
 							Text only
 						</label>
 					</fieldset>
+
+					<label class="field field-toggle">
+						<span>Monochrome mode</span>
+						<input type="checkbox" bind:checked={draftMonoMode} />
+					</label>
 				</div>
 			</div>
 		{/if}
@@ -752,6 +759,20 @@
 
 	.field-narrow input {
 		max-width: 120px;
+	}
+
+	.field-toggle {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.field-toggle input[type='checkbox'] {
+		width: 20px;
+		height: 20px;
+		accent-color: var(--color-accent);
+		cursor: pointer;
+		flex-shrink: 0;
 	}
 
 	.field-radio {

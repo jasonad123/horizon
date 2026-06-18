@@ -47,6 +47,15 @@ body {
 	flex-direction: column;
 }
 
+/* Monochrome mode — strip accent colours, keep layout and contrast intact */
+.screen.mono {
+	--color-realtime: #c8c8d0;
+	--color-scheduled: #808090;
+	--color-alert: #c8c8d0;
+	--color-cancelled: #808090;
+	--color-accent: #c8c8d0;
+}
+
 iconify-icon {
   display: inline-block;
   width: 1em;

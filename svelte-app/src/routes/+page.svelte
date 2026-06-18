@@ -3,6 +3,7 @@
 	import { formatClock } from '$lib/utils/timeUtils';
 	import DepartureBoard from '$lib/components/DepartureBoard.svelte';
 	import SetupOverlay from '$lib/components/SetupOverlay.svelte';
+	import 'iconify-icon';
 
 	let now = $state(new Date());
 	let showSetup = $state(false);
@@ -44,7 +45,7 @@
 		oncancel={showSetup && !needsSetup ? () => { showSetup = false; } : undefined}
 	/>
 {:else}
-	<div class="screen">
+	<div class="screen" class:mono={$config.monoMode}>
 		<header class="pids-header">
 			<button class="station-title" onclick={openSettings} title="Settings (S)">
 				{$config.title}

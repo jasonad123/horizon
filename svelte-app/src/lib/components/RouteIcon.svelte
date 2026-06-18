@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Route } from '$lib/services/nearby';
+	import { config } from '$lib/stores/config';
 
 	let { route, useIcons = true }: { route: Route; useIcons?: boolean } = $props();
 
@@ -22,8 +23,12 @@
 		luminance(route.route_text_color || '') > 0.3
 	);
 
-	let primaryColor = $derived(shouldInvert ? route.route_text_color : route.route_color);
-	let secondaryColor = $derived(shouldInvert ? route.route_color : route.route_text_color);
+	let primaryColor = $derived(
+		$config.monoMode ? 'e0e0e8' : (shouldInvert ? route.route_text_color : route.route_color)
+	);
+	let secondaryColor = $derived(
+		$config.monoMode ? '1a1a24' : (shouldInvert ? route.route_color : route.route_text_color)
+	);
 
 	function iconUrl(iconName: string): string {
 		if (COMPLEX_LOGOS.has(iconName)) return `/api/images/${iconName}.svg`;
@@ -54,8 +59,8 @@
 		'?'
 	);
 
-	let bg = $derived(`#${route.route_color || '888888'}`);
-	let fg = $derived(`#${route.route_text_color || 'ffffff'}`);
+	let bg = $derived($config.monoMode ? '#2a2a36' : `#${route.route_color || '888888'}`);
+	let fg = $derived($config.monoMode ? '#e0e0e8' : `#${route.route_text_color || 'ffffff'}`);
 
 	let fontSize = $derived(
 		label.length > 4 ? '0.6em' :
