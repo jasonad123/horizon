@@ -1,11 +1,14 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import { SvelteSet } from 'svelte/reactivity';
 	import { config } from '$lib/stores/config';
 	import { findNearbyRoutes } from '$lib/services/nearby';
 	import { fetchStopDepartures } from '$lib/services/stops';
 	import { shouldShowDeparture } from '$lib/utils/departureFilters';
 	import DepartureRow from './DepartureRow.svelte';
-	import type { Route, Itinerary } from '$lib/services/nearby';
+	import AlertTicker from './AlertTicker.svelte';
+	import type { Route, Itinerary, Alert } from '$lib/services/nearby';
+	import type { TickerAlert } from './AlertTicker.svelte';
 
 	interface DirectionEntry {
 		route: Route;
@@ -15,10 +18,39 @@
 	}
 
 	let departures = $state<DirectionEntry[]>([]);
+	let allRoutes = $state<Route[]>([]);
 	let loading = $state(true);
 	let errorMessage = $state<string | null>(null);
 	let retryCountdown = $state<number | null>(null);
 	let errorType = $state<'rate-limit' | 'auth' | 'timeout' | 'generic' | null>(null);
+
+	function isAlertActive(alert: Alert): boolean {
+		if (!alert.active_periods?.length) return true;
+		const now = Date.now();
+		return alert.active_periods.some(
+			(p) =>
+				(p.start == null || now >= p.start * 1000) &&
+				(p.end == null || now <= p.end * 1000)
+		);
+	}
+
+	let tickerAlerts = $derived.by((): TickerAlert[] => {
+		const seen = new SvelteSet<string>();
+		const result: TickerAlert[] = [];
+		for (const route of allRoutes) {
+			for (const alert of route.alerts ?? []) {
+				if (!isAlertActive(alert)) continue;
+				const key = `${alert.effect}|${alert.description}`;
+				if (seen.has(key)) continue;
+				seen.add(key);
+				result.push({
+					alert,
+					routeLabel: route.route_short_name || route.route_long_name?.split(' ')[0] || ''
+				});
+			}
+		}
+		return result;
+	});
 
 	let pollInterval: ReturnType<typeof setInterval> | null = null;
 	let retryTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -77,6 +109,7 @@
 				return;
 			}
 
+			allRoutes = routes;
 			departures = buildDirections(routes).slice(0, cfg.maxDepartures);
 			loading = false;
 			errorMessage = null;
@@ -150,47 +183,57 @@
 </script>
 
 <div class="board">
-	{#if loading}
-		<div class="overlay">
-			<span class="overlay-text">Loading departures...</span>
-		</div>
-	{:else if errorMessage && departures.length === 0}
-		<div class="overlay overlay-error">
-			<span class="overlay-text">{errorMessage}</span>
-			{#if retryCountdown !== null && retryCountdown > 0}
-				<span class="overlay-sub">Retrying in {retryCountdown}s</span>
-			{/if}
-		</div>
-	{:else if departures.length === 0}
-		<div class="overlay">
-			<span class="overlay-text">No departures scheduled</span>
-		</div>
-	{:else}
-		<table class="departure-table">
-			<thead>
-				<tr>
-					<th class="col-route">LINE</th>
-					<th class="col-destination">DESTINATION</th>
-					<th class="col-stop">STOP / BAY</th>
-					<th class="col-time">TIME</th>
-				</tr>
-			</thead>
-			<tbody>
-				{#each departures as entry (entry.route.global_route_id + '-' + (entry.itinerary.direction_id ?? '') + '-' + (entry.itinerary.merged_headsign || entry.itinerary.headsign || ''))}
-					<DepartureRow
-						route={entry.route}
-						itinerary={entry.itinerary}
-						showBadge={entry.showBadge}
-						groupIndex={entry.groupIndex}
-					/>
-				{/each}
-			</tbody>
-		</table>
-	{/if}
+	<div class="table-area">
+		{#if loading}
+			<div class="overlay">
+				<span class="overlay-text">Loading departures...</span>
+			</div>
+		{:else if errorMessage && departures.length === 0}
+			<div class="overlay overlay-error">
+				<span class="overlay-text">{errorMessage}</span>
+				{#if retryCountdown !== null && retryCountdown > 0}
+					<span class="overlay-sub">Retrying in {retryCountdown}s</span>
+				{/if}
+			</div>
+		{:else if departures.length === 0}
+			<div class="overlay">
+				<span class="overlay-text">No departures scheduled</span>
+			</div>
+		{:else}
+			<table class="departure-table">
+				<thead>
+					<tr>
+						<th class="col-route">LINE</th>
+						<th class="col-destination">DESTINATION</th>
+						<th class="col-stop">STOP / BAY</th>
+						<th class="col-time">TIME</th>
+					</tr>
+				</thead>
+				<tbody>
+					{#each departures as entry (entry.route.global_route_id + '-' + (entry.itinerary.direction_id ?? '') + '-' + (entry.itinerary.merged_headsign || entry.itinerary.headsign || ''))}
+						<DepartureRow
+							route={entry.route}
+							itinerary={entry.itinerary}
+							showBadge={entry.showBadge}
+							groupIndex={entry.groupIndex}
+						/>
+					{/each}
+				</tbody>
+			</table>
+		{/if}
+	</div>
+	<AlertTicker alerts={tickerAlerts} />
 </div>
 
 <style>
 	.board {
+		flex: 1;
+		overflow: hidden;
+		display: flex;
+		flex-direction: column;
+	}
+
+	.table-area {
 		flex: 1;
 		overflow: hidden;
 		display: flex;

@@ -63,10 +63,12 @@ export interface ScheduleItem {
 
 export interface Alert {
 	effect: string;
+	cause?: string;
 	severity: string;
 	title?: string;
 	description: string;
 	created_at: number;
+	active_periods?: { start: number | null; end: number | null }[];
 }
 
 export interface LatLng {
