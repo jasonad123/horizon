@@ -31,7 +31,7 @@ You'll need display hardware to show the interface. Options range from:
 
 **Best for**: Organizations comfortable with cloud PaaS platforms and looking for quickest setup
 
-Railway provides a one-click deployment experience:
+Railway provides a one-click deployment experience (button coming soon):
 
 <!-- [![Deploy on Railway](https://railway.com/button.svg)]() -->
 
@@ -50,7 +50,6 @@ Railway provides a one-click deployment experience:
 - Multiple instances can be deployed for different displays
 
 **Costs**: Railway charges based on usage. Check [Railway's pricing](https://railway.com/pricing) for current rates.
-
 
 ### Option 1B: One-Click Deployment (Render)
 
@@ -106,7 +105,7 @@ Horizon works with any Docker-compatible PaaS platform. It has been tested and d
 # render.yaml
 services:
   - type: web
-    name: Horizo 
+    name: Horizon
     runtime: docker
     image:
       url: ghcr.io/jasonad123/horizon:latest
@@ -346,14 +345,14 @@ docker compose up -d
 
 ```bash
 # Pull latest image
-docker pull jasonad123/horizon:latest
+docker pull ghcr.io/jasonad123/horizon:latest
 
 # Stop and remove old container
 docker stop horizon
 docker rm horizon
 
 # Start new container (using same command as initial deployment)
-docker run -d --name horizon --restart unless-stopped -p 8080:8080 --env-file .env jasonad123/horizon:latest
+docker run -d --name horizon --restart unless-stopped -p 8080:8080 --env-file .env ghcr.io/jasonad123/horizon:latest
 ```
 
 ## Monitoring and Maintenance
