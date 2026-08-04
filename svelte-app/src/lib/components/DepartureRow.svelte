@@ -1,7 +1,7 @@
 <script lang="ts">
 	import RouteIcon from './RouteIcon.svelte';
 	import 'iconify-icon';
-	import { formatCountdown } from '$lib/utils/timeUtils';
+	import { formatDepartureTime } from '$lib/utils/timeUtils';
 	import { shouldShowDeparture } from '$lib/utils/departureFilters';
 	import { config } from '$lib/stores/config';
 	import type { Route, Itinerary, ScheduleItem } from '$lib/services/nearby';
@@ -10,12 +10,14 @@
 		route,
 		itinerary,
 		showBadge = true,
-		groupIndex = 0
+		groupIndex = 0,
+		hidePlatformCol = false
 	}: {
 		route: Route;
 		itinerary: Itinerary;
 		showBadge?: boolean;
 		groupIndex?: number;
+		hidePlatformCol?: boolean;
 	} = $props();
 
 	let now = $state(Date.now());
@@ -31,7 +33,7 @@
 			.sort((a, b) => a.departure_time - b.departure_time)[0]
 	);
 
-	let countdown = $derived(currentItem ? formatCountdown(currentItem.departure_time, now) : '');
+	let countdown = $derived(currentItem ? formatDepartureTime(currentItem.departure_time, now, $config.timeFormat) : '');
 
 	let stopLabel = $derived.by(() => {
 		const stop = itinerary.closest_stop;
@@ -69,6 +71,8 @@
 
 	let hasAlert = $derived((route.alerts?.length ?? 0) > 0);
 	let isAlt = $derived(groupIndex % 2 !== 0);
+	let isGroupStart = $derived(showBadge && groupIndex > 0);
+	let rowStyle = $derived($config.rowStyle ?? 'alternating');
 
 	const RT_ICONS = ['tabler:wifi-0', 'tabler:wifi-1', 'tabler:wifi-2', 'tabler:wifi'];
 	let rtIconIndex = $state(0);
@@ -83,22 +87,26 @@
 </script>
 
 {#if currentItem}
-	<tr class="departure-row" class:alt={isAlt} class:is-cancelled={currentItem.is_cancelled}>
+	<tr class="departure-row"
+		class:alt={rowStyle === 'alternating' && isAlt}
+		class:card={rowStyle === 'card'}
+		class:is-cancelled={currentItem.is_cancelled}
+		class:group-start={isGroupStart}
+	>
 		<td class="col-route">
-			{#if showBadge}
-				<RouteIcon {route} useIcons={$config.useRouteIcons} />
-			{/if}
+			<RouteIcon {route} useIcons={$config.useRouteIcons} />
 		</td>
 		<td class="col-destination" class:cancelled-text={currentItem.is_cancelled}>
 			{#if hasAlert}
 				<iconify-icon class="alert-icon" icon="tabler:alert-triangle" aria-label="Service alert"></iconify-icon>
 			{/if}
-			{#if !showBadge}<span class="direction-indent"></span>{/if}
 			{destination}
 		</td>
-		<td class="col-stop">
-			{stopLabel}
-		</td>
+		{#if !hidePlatformCol}
+			<td class="col-stop">
+				{stopLabel}
+			</td>
+		{/if}
 		<td class="col-time">
 			<div class="time-inner">
 				<span class="countdown" class:cancelled-text={currentItem.is_cancelled}>
@@ -127,12 +135,22 @@
 		background: var(--bg-row-alt);
 	}
 
-.departure-row.is-cancelled {
+	/* Card style — uniform fill on every row */
+	.departure-row.card {
+		background: var(--bg-row-card);
+	}
+
+	/* Visible separator between route groups (skipped for the first group) */
+	.departure-row.group-start {
+		border-top: 2px solid var(--border-group-sep);
+	}
+
+	.departure-row.is-cancelled {
 		opacity: 0.5;
 	}
 
 	td {
-		padding: 0 14px;
+		padding: var(--row-padding-v) var(--row-padding-h);
 		vertical-align: middle;
 		white-space: nowrap;
 		overflow: hidden;
@@ -140,7 +158,7 @@
 
 	.col-route {
 		width: var(--col-route);
-		padding: 0 10px;
+		padding: var(--row-padding-v) 10px;
 		text-align: center;
 	}
 
@@ -153,17 +171,7 @@
 		text-overflow: ellipsis;
 	}
 
-	.direction-indent {
-		display: inline-block;
-		vertical-align: middle;
-		width: 2px;
-		height: 1.1em;
-		background: var(--border-color);
-		border-radius: 1px;
-		margin-right: 10px;
-	}
-
-	.col-stop {
+.col-stop {
 		width: var(--col-stop);
 		font-size: 0.88em;
 		color: var(--text-secondary);

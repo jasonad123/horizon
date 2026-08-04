@@ -16,6 +16,15 @@
 	let clockFormat = $derived<'HH:mm' | 'hh:mm A' | 'HH:mm:ss'>($config.timeFormat === 'hh:mm A' ? 'hh:mm A' : 'HH:mm:ss');
 	let clockString = $derived(formatClock(now, clockFormat));
 
+	const HEADER_ICONS: Record<string, string> = {
+		train: 'bxs:train',
+		bus: 'mdi:bus',
+		metro: 'mdi:subway-variant',
+		tram: 'mdi:tram',
+		ferry: 'mdi:ferry'
+	};
+	let headerIconName = $derived($config.headerIcon !== 'none' ? HEADER_ICONS[$config.headerIcon] ?? null : null);
+
 	// Show setup when nothing is configured yet
 	let needsSetup = $derived(
 		$config.loaded &&
@@ -48,6 +57,11 @@
 	<div class="screen" class:mono={$config.monoMode}>
 		<header class="pids-header">
 			<button class="station-title" onclick={openSettings} title="Settings (S)">
+				{#if headerIconName}
+					<span class="header-icon-wrap">
+						<iconify-icon icon={headerIconName} aria-hidden="true"></iconify-icon>
+					</span>
+				{/if}
 				{$config.title}
 			</button>
 			<span class="clock">{clockString}</span>
@@ -68,15 +82,18 @@
 	.pids-header {
 		height: var(--header-height);
 		background: var(--bg-header);
-		border-bottom: 1px solid var(--border-color);
+		border-bottom: 2px solid var(--border-header);
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		padding: 0 20px;
+		padding: 0 24px;
 		flex-shrink: 0;
 	}
 
 	.station-title {
+		display: flex;
+		align-items: center;
+		gap: 14px;
 		font-size: 1.35em;
 		font-weight: 600;
 		color: var(--text-primary);
@@ -87,8 +104,20 @@
 		cursor: pointer;
 		padding: 0;
 		font-family: inherit;
-		/* Subtle affordance — only visible on hover */
 		transition: color 0.2s;
+	}
+
+	.header-icon-wrap {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: clamp(34px, 3vw, 46px);
+		height: clamp(34px, 3vw, 46px);
+		background: var(--color-accent);
+		border-radius: 6px;
+		color: #fff;
+		font-size: clamp(18px, 1.8vw, 26px);
+		flex-shrink: 0;
 	}
 
 	.station-title:hover {

@@ -7,15 +7,10 @@
 	import { shouldShowDeparture } from '$lib/utils/departureFilters';
 	import DepartureRow from './DepartureRow.svelte';
 	import AlertTicker from './AlertTicker.svelte';
+	import PlatformBoard from './PlatformBoard.svelte';
 	import type { Route, Itinerary, Alert } from '$lib/services/nearby';
 	import type { TickerAlert } from './AlertTicker.svelte';
-
-	interface DirectionEntry {
-		route: Route;
-		itinerary: Itinerary;
-		showBadge: boolean;  // true only for the first direction in each route group
-		groupIndex: number;  // increments per route — drives alternating row shading
-	}
+	import type { DirectionEntry } from '$lib/utils/displayTypes';
 
 	let departures = $state<DirectionEntry[]>([]);
 	let allRoutes = $state<Route[]>([]);
@@ -183,46 +178,56 @@
 </script>
 
 <div class="board">
-	<div class="table-area">
-		{#if loading}
-			<div class="overlay">
-				<span class="overlay-text">Loading departures...</span>
-			</div>
-		{:else if errorMessage && departures.length === 0}
-			<div class="overlay overlay-error">
-				<span class="overlay-text">{errorMessage}</span>
-				{#if retryCountdown !== null && retryCountdown > 0}
-					<span class="overlay-sub">Retrying in {retryCountdown}s</span>
-				{/if}
-			</div>
-		{:else if departures.length === 0}
-			<div class="overlay">
-				<span class="overlay-text">No departures scheduled</span>
-			</div>
-		{:else}
-			<table class="departure-table">
-				<thead>
-					<tr>
-						<th class="col-route">LINE</th>
-						<th class="col-destination">DESTINATION</th>
-						<th class="col-stop">STOP / BAY</th>
-						<th class="col-time">TIME</th>
-					</tr>
-				</thead>
-				<tbody>
-					{#each departures as entry (entry.route.global_route_id + '-' + (entry.itinerary.direction_id ?? '') + '-' + (entry.itinerary.merged_headsign || entry.itinerary.headsign || ''))}
-						<DepartureRow
-							route={entry.route}
-							itinerary={entry.itinerary}
-							showBadge={entry.showBadge}
-							groupIndex={entry.groupIndex}
-						/>
-					{/each}
-				</tbody>
-			</table>
-		{/if}
-	</div>
-	<AlertTicker alerts={tickerAlerts} />
+	{#if $config.displayMode === 'platform'}
+		<PlatformBoard
+			{departures}
+			{loading}
+			{errorMessage}
+			{retryCountdown}
+			{tickerAlerts}
+		/>
+	{:else}
+		<div class="table-area">
+			{#if loading}
+				<div class="overlay">
+					<span class="overlay-text">Loading departures...</span>
+				</div>
+			{:else if errorMessage && departures.length === 0}
+				<div class="overlay overlay-error">
+					<span class="overlay-text">{errorMessage}</span>
+					{#if retryCountdown !== null && retryCountdown > 0}
+						<span class="overlay-sub">Retrying in {retryCountdown}s</span>
+					{/if}
+				</div>
+			{:else if departures.length === 0}
+				<div class="overlay">
+					<span class="overlay-text">No departures scheduled</span>
+				</div>
+			{:else}
+				<table class="departure-table">
+					<thead>
+						<tr>
+							<th class="col-route">LINE</th>
+							<th class="col-destination">DESTINATION</th>
+							<th class="col-stop">STOP / BAY</th>
+							<th class="col-time">TIME</th>
+						</tr>
+					</thead>
+					<tbody>
+						{#each departures as entry (entry.route.global_route_id + '-' + (entry.itinerary.direction_id ?? '') + '-' + (entry.itinerary.merged_headsign || entry.itinerary.headsign || ''))}
+							<DepartureRow
+								route={entry.route}
+								itinerary={entry.itinerary}
+								showBadge={entry.showBadge}
+								groupIndex={entry.groupIndex}
+							/>
+						{/each}
+					</tbody>
+				</table>
+			{/if}
+		</div>
+		<AlertTicker alerts={tickerAlerts} />
+	{/if}
 </div>
 
 <style>
@@ -252,7 +257,7 @@
 	}
 
 	thead th {
-		padding: 12px 14px;
+		padding: 12px var(--row-padding-h);
 		font-size: 0.72em;
 		font-weight: 700;
 		letter-spacing: 0.1em;
@@ -275,6 +280,7 @@
 	thead th.col-time {
 		width: var(--col-time);
 		text-align: right;
+		padding-right: var(--row-padding-h);
 	}
 
 	.overlay {
