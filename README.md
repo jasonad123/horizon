@@ -2,7 +2,7 @@
 
 Yet another real-time transit display application that shows arrival times for nearby public transit.
 
-Forged with the core of [Headsign](https://github.com/jasonad123/headsign), but built even simpler and made to be *horizontal*.
+Forged from the core of [Headsign](https://github.com/jasonad123/headsign), but built to be even simpler and made to be *horizontal*.
 
 ![Screenshot](/assets/horizon-screenshot.png)
 
@@ -21,9 +21,11 @@ Forged with the core of [Headsign](https://github.com/jasonad123/headsign), but 
 
 - An API key from Transit - [keys can be requested here](https://transitapp.com/partners/apis)
 
-Optional, for local deployment or development only
+Optional, for local deployment or development
 
 - Docker (recommended)
+
+Optional, for local development only
 - Node.js (version specified in .node-version, for development/local deployment purposes only)
 - pnpm (preferred package manager, for development/local deployment purposes only)
 
