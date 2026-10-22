@@ -81,11 +81,9 @@ Railway provides a one-click deployment experience:
 
 **Best for**: Organizations preferring other PaaS providers or needing specific features
 
-Horizon works with any Docker-compatible PaaS platform. It has been tested and deployed on Railway and Render.
-
-- **Railway** - Recommended, full template support
-- **Render** - Good alternative, straightforward setup with template support
-- **Fly.io** - Global edge deployment, good for multi-location agencies
+Horizon works with any Docker-compatible PaaS platform,
+such as Railway or Render.
+Both Railway and Render have full template support for Horizon, but it should be compatible with similar platforms like Fly.io.
 
 #### General Setup Steps
 
