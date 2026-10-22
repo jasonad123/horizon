@@ -36,7 +36,7 @@ Railway provides a one-click deployment experience:
 [![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/yvxqKF?referralCode=9qzudG&utm_medium=integration&utm_source=template&utm_campaign=generic)
 
 > **Security notice (2026-10-21):** Railway reported a platform security
-> incident affecting stored environment variables. If you deployed Headsign
+> incident affecting stored environment variables. If you deployed Horizon
 > on Railway, rotate your Transit API key and any other secrets stored
 > there. See [Railway's status page](https://status.railway.com/incident/QH8L8B3E)
 > for details and guidance.
