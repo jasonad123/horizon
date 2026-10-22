@@ -1,0 +1,44 @@
+# Git
+.git
+.gitignore
+.github
+
+# Node.js
+node_modules
+svelte-app/node_modules
+
+# Logs
+logs
+*.log
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# IDE and editor files
+.idea
+.vscode
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Documentation
+docs/
+assets/
+*.md
+!README.md
+
+# Svelte/Vite
+.svelte-kit
+.vercel
+.netlify
+
+# CI/CD and tooling
+railway.json
+.claude/
+.mcp.json
+.meta/
